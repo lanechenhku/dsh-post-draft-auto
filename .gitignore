@@ -9,6 +9,9 @@ state/
 drafts/
 media/
 
+# 本机私有配置覆盖层（真实端点/本地路径放这里，不进版本库）
+config.local.json
+
 # 凭据：本工具当前不需要任何凭据，将来若加，一律不入库
 .env
 .env.*

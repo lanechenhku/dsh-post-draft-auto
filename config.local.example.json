@@ -1,0 +1,39 @@
+{
+  "$comment": "本机私有覆盖层示例。复制成 config.local.json 后填真实值；config.local.json 已在 .gitignore 里，不要提交。合并规则见 README 与 lib/store.mjs：对象深合并；对象数组按 index 深合并（可只写要改的字段）；含原始值的数组整体替换；想整体替换对象数组用 { \"$replace\": [...] } 包一层。",
+  "$comment_brand": "只写要改的键即可，其余沿用 config.json",
+  "brand": {
+    "name": "Your product",
+    "footer": "example.com"
+  },
+  "$comment_releaseNotesFiles": "含原始值的数组 → 整体替换，不是逐项追加",
+  "releaseNotesFiles": [
+    "path/to/your/repo/docs/releases.md"
+  ],
+  "authorName": "<your name as printed on the paper>",
+  "sources": {
+    "$comment_site": "对象数组 → 按 index 深合并：这里只覆盖 site[0] 的若干字段，label/versionKey 等沿用 config.json",
+    "site": [
+      {
+        "enabled": true,
+        "url": "https://your-product.example.com/version.json",
+        "local": {
+          "file": "/absolute/path/to/your-repo/version.json"
+        },
+        "link": "https://your-product.example.com/",
+        "referenceFile": "/absolute/path/to/your-repo/CHANGELOG.md",
+        "releaseNotesFiles": [
+          "path/to/your/repo/docs/releases.md"
+        ]
+      }
+    ],
+    "$comment_replace": "想换成完全不同的源列表，用 $replace",
+    "$example_replace": {
+      "$replace": [
+        {
+          "id": "product",
+          "enabled": false
+        }
+      ]
+    }
+  }
+}

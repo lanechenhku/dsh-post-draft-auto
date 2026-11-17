@@ -122,6 +122,10 @@ node bin/post-tool.mjs post_mark_posted --json '{"id":"d-2b17c099ab"}'
 ### 语气
 
 `voice.md` 是写稿时的语气约定，禁用词在 `config.json.voice.banned`
+
+**本机私有覆盖层**：把真实端点、本地仓库路径这类不该公开的值写进 `config.local.json`（已在 `.gitignore` 里），
+它会被深合并到 `config.json` 之上；仓库里只保留占位符版本。键名与合并规则见 [config.local.example.json](config.local.example.json)：
+对象深合并；对象数组按 index 深合并（所以只写要改的字段就行）；含原始值的数组整体替换；想换掉整个对象数组用 `{"$replace": [...]}`。
 （`excited to announce`、`game-changer`、`revolutionary`、`震撼发布`… 以及中文的「重磅」「颠覆」「史上最强」）。
 `voice.md` 现在还是默认的「零形容词」风格——你贴 3–5 条旧推，它就会变成你的语气。
 
@@ -403,6 +407,11 @@ when you go over; `post_save` returns `enWeight` / `zhWeight` too.
 ### Tone
 
 `voice.md` holds the tone contract; the banned phrases live in `config.json.voice.banned`
+
+**Local override**: keep real endpoints and local repo paths in `config.local.json` (already in `.gitignore`). It is
+deep-merged on top of `config.json`; the repository only carries the placeholder version. Key names and merge rules are in
+[config.local.example.json](config.local.example.json): objects merge deeply, arrays of objects merge by index (so you can
+override just one field), arrays of primitives replace wholesale, and `{"$replace": [...]}` replaces an object array outright.
 (`excited to announce`, `game-changer`, "重磅", "颠覆", "史上最强"…). It is still the conservative default —
 hand it 3–5 of your old posts and it will sound like you.
 
