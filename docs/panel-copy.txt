@@ -1,3 +1,3 @@
 <b>copy result</b><pre>toast = "已复制 英文主推（clipboard）"
-pasted = "New preprint: a phenome-wide view of heritability enrichment.\n\n· 70 loci at FDR 5% across 444 GWAS\n· closed-form estimates, cost flat in trait count\n\nhttps://example.org/papers/example"
+pasted = "New preprint: Example preprint, a neutral demo of the draft desk.\n\n· first bullet from the abstract\n· second bullet, with its source\n\nhttps://example.org/paper"
 leftover textarea = ""</pre>

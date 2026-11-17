@@ -27,14 +27,14 @@
 
 **① 跟 agent 说一句话（主要方式，推荐）** —— 装好插件后，agent 自己按 `post_facts → 写稿 → post_save` 走完，
 把英文主推 + 中文回复贴回会话；你复制走、发完回来说一声，它用 `post_mark_posted` 把台账记上。
-一次真实的（2026-11-18，LRCQ）：
+一次典型的输入输出长这样（DOI / 链接用占位符）：
 
 | 谁 | 发生了什么 |
 |---|---|
-| 你说 | `我刚发了 bioRxiv 10.64898/2026.11.02.763731` |
-| agent 做 | `post_facts` 抓到标题 / 日期 / v1 / 作者 / 单位 / 摘要共 10 条带 `sourceUrl` 的事实 → 自己写 EN + ZH + 卡片文案 → `post_save` 落盘 `d-2b17c099ab` |
-| 你拿到 | 英文主推 **274/280**、中文回复 **219/280**、卡片图 `media/d-2b17c099ab.png`；`blockers` 0、`pending` 0 |
-| 你发完 | 回来说一声「发好了」→ agent 调 `post_mark_posted`，写进 `state/posted.jsonl` 台账 |
+| 你说 | `我刚发了一篇 preprint，DOI 是 ⟨你的 DOI⟩`（或者：`链接 https://…`） |
+| agent 做 | `post_facts` 抓标题 / 日期 / 版本 / 作者 / 单位 / 摘要，**每条带 `sourceUrl`** → 自己写英文主推 + 中文回复 + 卡片文案 → `post_save` 落盘 |
+| 你拿到 | 英文主推 + 中文回复（各自标计权字数，**超 280 会被拦**）+ 卡片图 + 能点回源头的事实表 |
+| 你发完 | 回来说一声 → `post_mark_posted` 写进 `state/posted.jsonl` 台账 |
 
 **面板和网页工作台是同一个仓库的两个视图，不是必须的**：只对话也能完整走完（出稿 → 复制 → 发 → 记台账）。
 
@@ -45,10 +45,10 @@
 
 ```sh
 npm start        # = node bin/serve.mjs → http://127.0.0.1:4789
-node bin/post-tool.mjs post_facts --json '{"doi":"10.64898/2026.11.02.763731"}'
+node bin/post-tool.mjs post_facts --json '{"doi":"<your-doi>"}'
 node bin/post-tool.mjs post_save  --file /tmp/draft.json     # {en, zh, card, facts, sourceKey}
 node bin/post-tool.mjs post_list
-node bin/post-tool.mjs post_mark_posted --json '{"id":"d-2b17c099ab"}'
+node bin/post-tool.mjs post_mark_posted --json '{"id":"<draft-id>"}'
 ```
 
 不需要 `npm install`：没有任何依赖，Node ≥ 18 即可。
@@ -57,7 +57,7 @@ node bin/post-tool.mjs post_mark_posted --json '{"id":"d-2b17c099ab"}'
 
 | 你给的东西 | 调用 | 抓到的事实 |
 |---|---|---|
-| bioRxiv / medRxiv DOI | `{"doi":"10.64898/2026.11.02.763731"}` | 标题、DOI、日期、版本、全部作者、通讯作者、单位、分类、摘要全文 |
+| bioRxiv / medRxiv DOI | `{"doi":"<your-doi>"}` | 标题、DOI、日期、版本、全部作者、通讯作者、单位、分类、摘要全文 |
 | 产品版本 | `{"version":"v1.2.3"}` | 线上版本、本地版本、`releases.md` 里这一版的要点（没有就退到 CHANGELOG 原话） |
 | npm 包 | `{"pkg":"@deepseek-ai/dsh"}` | 版本、发布时间、包描述 |
 | 任意 URL | `{"url":"https://…"}` | 页面标题、meta description、URL 本身 |
@@ -65,7 +65,7 @@ node bin/post-tool.mjs post_mark_posted --json '{"id":"d-2b17c099ab"}'
 
 两个实测踩出来的细节：
 
-- **bioRxiv 2026 换了 DOI 前缀**：给 `10.1101/…` 查不到时，工具会自己换 `10.64898/…` 再查一次（反过来也试），不用你改链接。
+- **bioRxiv 换过 DOI 前缀**：拿旧前缀查不到时，工具会自己换当前前缀再试一次（反过来也试），不用你改链接。
 - **每条 fact 都带 `sourceUrl`**：`post_facts` 回来的 `facts[]` 里逐条能点回源头；作者名要用 `meta.authorInPaper` 里的写法，不要自己拼。
 
 ## 四个工具
@@ -83,17 +83,21 @@ node bin/post-tool.mjs post_mark_posted --json '{"id":"d-2b17c099ab"}'
 
 ## 工作台与侧栏面板
 
-![侧栏「出稿」面板：草稿列表、AI/模板标签、计权字数、复制与已发](docs/panel.png)
+![出稿工作台：左栏草稿列表、右栏英文主推 + 中文回复 + 卡片图 + 事实表](docs/workbench.png)
 
-上图是真实截图（一条 LRCQ 的稿子打在工作台里）：
+上图是真实截图（一条 preprint 的草稿打在工作台里；草稿内容是演示用的中性示例，下同）：
 
 - **左栏**：草稿列表，按 待发 / 已复制 / 已发 / 丢弃 筛选；每张卡片标来源（paper / npm / site / manual）、时间和「AI 生成 / 模板生成」徽标；底部是总数、台账条数和来源开关
-- **右栏**：第 1 条英文主推 + 第 2 条中文回复，各自带实时计权（上图 274/280、219/280）和**独立复制按钮**（复制走服务端去 markdown，粘到 X 里是纯文本）
+- **右栏**：第 1 条英文主推 + 第 2 条中文回复，各自带实时计权（上图 194/280、131/280）和**独立复制按钮**（复制走服务端去 markdown，粘到 X 里是纯文本）
 - **卡片图**：1200×675，有本机 Chrome 就出 PNG（`chrome-headless`），可下载/重新渲染；没有 Chrome 只出 SVG
 - **事实表**：正文里每个版本号/日期/摘要都能点回 `sourceUrl`；**待补清单**单列，抽不到的信息显示成 `⟨待补：…⟩`
 - **底部动作**：保存修改 / 标记已复制 / **已发到 X**（写台账，只追加）
 
 **侧栏「✍ 出稿」面板**（v0.3.0 起随插件提供）—— 不开网页工作台也能看草稿：
+
+![侧栏「✍ 出稿」面板：草稿列表、AI/模板标签、计权字数、复制与已发按钮](docs/panel.png)
+
+（面板要重启 DSH 才出现在侧栏里；上面这张是用同一份 `lib/client.js` 在 harness 页里渲染的，见 [docs/侧栏面板.md](docs/侧栏面板.md)。）
 
 - 位置：**右侧栏的页签选择器**里，名字「✍ 出稿」；装好（或更新）插件后要**完全退出 DSH（⌘Q）再启动**才会出现，客户端半部分在启动时加载
 - 每张草稿卡片：标题、`AI 生成 / 模板生成`、状态、`EN n/280 · ZH n/280`（超了变红）、guard 红条、待补前 4 条
@@ -220,15 +224,15 @@ npm test        # = node --test tests/
 插件契约（`name` / `inject` / `apply` 真注册四个工具），以及侧栏面板（client 模块契约、
 宿主接口 list / copy / mark-posted 与 guard 409）。
 
-一次真实端到端（2026-11-18，本机）：
+一次真实端到端（本机）：
 
 | 环节 | 结果 |
 |---|---|
-| 输入 | 一句话：`我刚发了 bioRxiv 10.1101/2026.11.02.763731` |
-| `post_facts` | 旧前缀查不到 → 自动换 `10.64898/…` 重试成功；抽到标题 LRCQ、日期 2026-11-04、v1、作者、单位、摘要，共 10 条 facts，每条带 `sourceUrl` |
-| `post_save` | 草稿 `d-2b17c099ab`，EN **274/280**、ZH **219/280**，`blockers` 0、`pending` 0 |
-| 复制文本 | `GET /api/drafts/d-2b17c099ab/copy?part=en` 返回的就是正文，markdown 符号 0 个 |
-| 核对 | 正文里的 `70`、`FDR 5%`、`444`、`2026-11-04`、`Chen & Sham`、`The University of Hong Kong` 全部能指回 facts |
+| 输入 | 一句话：`我刚发了一篇 preprint，DOI 是 ⟨你的 DOI⟩` |
+| `post_facts` | 返回标题 / 日期 / 版本 / 作者 / 单位 / 摘要等十余条 facts，每条带 `sourceUrl`；旧 DOI 前缀查不到时会自动换前缀重试一次 |
+| `post_save` | 落盘一条草稿，EN / ZH 都落在 280 计权以内，`blockers` 0、`pending` 0 |
+| 复制文本 | `GET /api/drafts/<draft-id>/copy?part=en` 返回的就是正文，markdown 符号 0 个 |
+| 核对 | 正文里出现的每个数字 / 日期 / 作者名都能指回 facts |
 
 ## 已知限制
 
@@ -292,14 +296,14 @@ the ledger entry.
 **① Talk to the agent (main way, recommended)** — with the plugin installed the agent runs
 `post_facts → write → post_save` on its own and hands the English post and the Chinese reply back in the
 conversation. You copy, publish, come back and say so, and it records the ledger through `post_mark_posted`.
-One real run (2026-11-18, LRCQ):
+A typical input and output looks like this (DOI / link are placeholders):
 
 | Who | What happened |
 |---|---|
-| You | `我刚发了 bioRxiv 10.64898/2026.11.02.763731` |
-| The agent | `post_facts` returned 10 sourced facts (title, date, v1, authors, institution, abstract — each with a `sourceUrl`) → wrote EN + ZH + card copy → `post_save` saved `d-2b17c099ab` |
-| You got | English post **274/280**, Chinese reply **219/280**, card image `media/d-2b17c099ab.png`; 0 blockers, 0 pending |
-| After posting | you say "posted" → the agent calls `post_mark_posted` and appends to `state/posted.jsonl` |
+| You | `我刚发了一篇 preprint，DOI 是 ⟨your DOI⟩` (or: `链接 https://…`) |
+| The agent | `post_facts` pulls title / date / version / authors / institution / abstract, **each with a `sourceUrl`** → writes the English post, the Chinese reply and the card copy → `post_save` saves the draft |
+| You got | English post + Chinese reply (each with its weighted count, **over 280 is blocked**) + the card image + a fact table that links back to the source |
+| After posting | you say so → `post_mark_posted` appends to `state/posted.jsonl` |
 
 **The panel and the web workbench are two views of the same repository, not a requirement**: the conversation
 alone covers the whole loop (draft → copy → publish → ledger).
@@ -311,10 +315,10 @@ that lists drafts with per-row copy EN / copy ZH and a posted button — see "Wo
 
 ```sh
 npm start        # = node bin/serve.mjs → http://127.0.0.1:4789
-node bin/post-tool.mjs post_facts --json '{"doi":"10.64898/2026.11.02.763731"}'
+node bin/post-tool.mjs post_facts --json '{"doi":"<your-doi>"}'
 node bin/post-tool.mjs post_save  --file /tmp/draft.json     # {en, zh, card, facts, sourceKey}
 node bin/post-tool.mjs post_list
-node bin/post-tool.mjs post_mark_posted --json '{"id":"d-2b17c099ab"}'
+node bin/post-tool.mjs post_mark_posted --json '{"id":"<draft-id>"}'
 ```
 
 No `npm install` needed: there are no dependencies. Node ≥ 18 is enough.
@@ -323,7 +327,7 @@ No `npm install` needed: there are no dependencies. Node ≥ 18 is enough.
 
 | You give | Call | Facts you get back |
 |---|---|---|
-| bioRxiv / medRxiv DOI | `{"doi":"10.64898/2026.11.02.763731"}` | Title, DOI, date, version, authors, corresponding author, institution, category, full abstract |
+| bioRxiv / medRxiv DOI | `{"doi":"<your-doi>"}` | Title, DOI, date, version, authors, corresponding author, institution, category, full abstract |
 | A product version | `{"version":"v1.2.3"}` | Online version, local version, this version's notes from `releases.md` (falls back to CHANGELOG quotes) |
 | An npm package | `{"pkg":"@deepseek-ai/dsh"}` | Version, publish date, package description |
 | Any URL | `{"url":"https://…"}` | Page title, meta description, the URL itself |
@@ -331,8 +335,8 @@ No `npm install` needed: there are no dependencies. Node ≥ 18 is enough.
 
 Two details learned the hard way:
 
-- **bioRxiv moved its DOI prefix in 2026**: when `10.1101/…` finds nothing, the tool retries with
-  `10.64898/…` (and the other way round) — you do not have to fix the link.
+- **bioRxiv has changed its DOI prefix**: when the old prefix finds nothing, the tool retries with the current
+  one (and the other way round) — you do not have to fix the link.
 - **Every fact carries a `sourceUrl`**: each entry in `facts[]` links back to its origin; use the spelling from
   `meta.authorInPaper` when you print an author name.
 
@@ -352,15 +356,15 @@ body that is not in the facts lands in `blockers`** (no invented figures).
 
 ## Workbench and sidebar panel
 
-![The sidebar draft panel: draft list with AI/template tags, weighted counts, copy and mark-posted buttons](docs/panel.png)
+![The draft workbench: draft list on the left, English post, Chinese reply, card and fact table on the right](docs/workbench.png)
 
-The screenshot above is real (one LRCQ draft open in the workbench):
+The screenshot above is real (a preprint draft open in the workbench; the draft content is a neutral demo, same below):
 
 - **Left**: the draft list filtered by drafted / copied / published / discarded; each card shows source
   (paper / npm / site / manual), time and an "AI generated / template" badge; the footer shows totals, ledger
   rows and source switches
-- **Right**: post 1 (English main) and post 2 (Chinese reply), each with live weighted counts (274/280 and
-  219/280 above) and **its own copy button** (copy goes through the server's markdown stripper, so what you
+- **Right**: post 1 (English main) and post 2 (Chinese reply), each with live weighted counts (194/280 and
+  131/280 above) and **its own copy button** (copy goes through the server's markdown stripper, so what you
   paste into X is plain text)
 - **Card**: 1200×675; a local Chrome produces the PNG (`chrome-headless`), downloadable and re-renderable;
   without Chrome you only get the SVG
@@ -370,6 +374,10 @@ The screenshot above is real (one LRCQ draft open in the workbench):
 
 **Sidebar "✍ 出稿" panel** (shipped with the plugin since v0.3.0) — the draft list without opening the web
 workbench:
+
+![The sidebar draft panel: draft list with AI/template tags, weighted counts, copy and mark-posted buttons](docs/panel.png)
+
+(The tab only appears after restarting DSH; the image above renders the same `lib/client.js` in a harness page — see [docs/侧栏面板.md](docs/侧栏面板.md).)
 
 - Where: in the **right sidebar's tab picker**, named "✍ 出稿". After installing or updating the plugin you must
   **quit DSH completely (⌘Q) and start it again** — the client half loads at startup
@@ -518,15 +526,15 @@ markdown-free copy text, the 409 publish gate, the plugin contract (`name` / `in
 registering the four tools), and the sidebar panel (client module contract, host routes list / copy /
 mark-posted, guard 409).
 
-One real end-to-end run (2026-11-18, this machine):
+A real end-to-end run (on this machine):
 
 | Step | Result |
 |---|---|
-| Input | One sentence: `我刚发了 bioRxiv 10.1101/2026.11.02.763731` |
-| `post_facts` | Old prefix found nothing → retried with `10.64898/…` and succeeded; got title LRCQ, date 2026-11-04, v1, authors, institution, abstract — 10 facts, each with a `sourceUrl` |
-| `post_save` | Draft `d-2b17c099ab`, EN **274/280**, ZH **219/280**, 0 blockers, 0 pending |
-| Copy text | `GET /api/drafts/d-2b17c099ab/copy?part=en` returned the body verbatim with zero markdown characters |
-| Audit | `70`, `FDR 5%`, `444`, `2026-11-04`, `Chen & Sham`, `The University of Hong Kong` all trace back to facts |
+| Input | One sentence: `我刚发了一篇 preprint，DOI 是 ⟨your DOI⟩` |
+| `post_facts` | Returns title / date / version / authors / institution / abstract as a dozen facts, each with a `sourceUrl`; an old DOI prefix that finds nothing is retried with the current one |
+| `post_save` | Saves one draft with both EN and ZH under the 280 weighted limit, 0 blockers, 0 pending |
+| Copy text | `GET /api/drafts/<draft-id>/copy?part=en` returns the body verbatim with zero markdown characters |
+| Audit | Every number, date and author name in the body traces back to facts |
 
 ## Known limitations
 

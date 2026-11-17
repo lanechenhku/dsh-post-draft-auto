@@ -1,6 +1,6 @@
 # GitHub 门面：取值、理由与执行记录
 
-> 2026-11-18。参照对象：本仓库作者刚发布的 npm 包 [`dsh-claude-project-ui@0.2.0`](https://github.com/your-org/dsh-claude-project-ui)
+> 2026-11-18。参照对象：本仓库作者刚发布的 npm 包 [`dsh-claude-project-ui@0.2.0`](https://github.com/lanechenhku/dsh-claude-project-ui)
 > （2026-11-17 发布）。本文件记录「按它那套规范，本仓库的 About / homepage / topics / tag+release / package.json 应该长什么样、为什么、以及实际应用了什么」。
 > 本轮只改 `README.md` 与 `docs/`；`package.json` 的建议写在 §5，**未应用**（另一个讨论串可能在改它的 scripts）。
 
@@ -107,7 +107,7 @@ gh repo edit your-org/dsh-post-draft-auto \
 - 硬性约束：正文数字必须来自 facts（否则进 blockers）、280 计权（CJK=2 / URL=23）、抽不到就写 ⟨待补⟩
 - 网页工作台（127.0.0.1:4789）：草稿列表 / 独立复制按钮 / 实时计权 / 1200×675 卡片图 / 事实表可点回来源 / 已发台账
 - Acme 双源守卫：线上与本地 version.json 不一致时，复制与「已发」都是 409
-- 零依赖、无凭据、不调 X API；测试 53/53 通过；一次真实端到端 EN 274/280、ZH 219/280
+- 零依赖、无凭据、不调 X API；测试 53/53 通过；一次真实端到端 EN / ZH 均落在 280 计权以内
 
 First release: a local draft desk (not a posting bot) — sourced facts in, EN + ZH drafts and a card out, published by hand. Four tools, zero dependencies, 53 tests.
 ```
