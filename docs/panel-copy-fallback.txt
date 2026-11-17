@@ -1,0 +1,3 @@
+<b>copy result</b><pre>toast = "已选中文本，请按 ⌘C 复制；execCommand 被拒绝A bioRxiv preprint: phenome-wide heritability enrichment of genomic lociAI 生成待发EN 178/280ZH 142/280复制 EN复制 ZH已发Acme v1.2.3模板生成待发EN 96/280ZH 74/280待补 2 处· 要点：一句话说清这次最重要的变化· 链接：仓库 / 发布页复制 EN复制 ZH已发Acme v1.2.4模板生成待发EN 88/280ZH 66/280先别发：本地已 bump、线上还没上线复制 EN复制 ZH已发"
+pasted = ""
+leftover textarea = "New preprint: a phenome-wide view of heritability enrichment.\n\n· 70 loci at FDR 5% across 444 GWAS\n· closed-form estimates, cost flat in trait count\n\nhttps://example.org/papers/example"</pre>

@@ -1,0 +1,35 @@
+{
+  "npm": [
+    {
+      "pkg": "@deepseek-ai/dsh",
+      "version": "0.2.2-rc.4",
+      "publishedAt": "2026-11-04T09:20:32.310Z",
+      "description": "DeepSeek Harness: agent runtime with plugins, scheduled tasks and threads.",
+      "url": "https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.2.2-rc.4"
+    }
+  ],
+  "github": [
+    {
+      "repo": "your-org/your-product",
+      "tag": "v1.0.1",
+      "name": "V7.41 — 路由审计修复 + 患者端主题切换",
+      "body": "- 修复 12 个版本遗留的 hash 路由未登记问题，新增 #/hm 前缀\n- 患者端新增浅色/深色主题切换，持久化到 localStorage\n- 布局预算 doctor 脚本纳入 CI，超预算直接失败\n\n发布说明见 docs/RELEASE_v1.0.1.md",
+      "publishedAt": "2026-10-05T08:00:00Z",
+      "url": "https://github.com/your-org/your-product/releases/tag/v1.0.1"
+    }
+  ],
+  "arxiv": [
+    {
+      "id": "2511.00001v1",
+      "title": "Retrieval-Augmented Health Records for Longitudinal Risk Prediction",
+      "summary": "We present a retrieval-augmented pipeline for longitudinal risk prediction over electronic health records. The pipeline keeps provenance for every extracted lab value.",
+      "authors": [
+        "Lane Chen",
+        "Someone Else",
+        "Third Author"
+      ],
+      "publishedAt": "2026-11-01T00:00:00Z",
+      "url": "https://arxiv.org/abs/2511.00001v1"
+    }
+  ]
+}

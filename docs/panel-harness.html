@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>出稿面板（harness）</title>
+<style>
+  body { margin: 0; background: #0f172a; color: #e2e8f0; }
+  #pane { width: 420px; height: 640px; border-right: 1px solid #1e293b; display: flex; flex-direction: column; }
+  #log { position: fixed; left: 432px; top: 0; width: 520px; padding: 12px; font: 12px/1.6 ui-monospace, monospace; color: #94a3b8; }
+  #log b { color: #e2e8f0; }
+  pre { white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body>
+<div id="pane"></div>
+<div id="log"><b>harness</b>（真数据、桩 fetch）<div id="copied"></div></div>
+<script>
+window.__HARNESS__ = { data: {"ok":true,"total":3,"drafts":[{"id":"d-fixture-1","title":"A bioRxiv preprint: phenome-wide heritability enrichment of genomic loci","status":"drafted","generatedBy":"model","sourceKey":"paper:biorxiv:10.0000/2026.11.02.000001","enWeight":178,"zhWeight":142,"limit":280,"pending":[],"blockers":[],"guard":null,"createdAt":"2026-11-18T00:00:00.000Z"},{"id":"d-fixture-2","title":"Acme v1.2.3","status":"drafted","generatedBy":"template","sourceKey":"site:product:v1.2.3","enWeight":96,"zhWeight":74,"limit":280,"pending":["要点：一句话说清这次最重要的变化","链接：仓库 / 发布页"],"blockers":[],"guard":null,"createdAt":"2026-11-17T00:00:00.000Z"},{"id":"d-fixture-3","title":"Acme v1.2.4","status":"drafted","generatedBy":"template","sourceKey":"site:product:v1.2.4","enWeight":88,"zhWeight":66,"limit":280,"pending":[],"blockers":[],"guard":"pending-rollout","createdAt":"2026-11-17T00:00:00.000Z"}]}, copyTexts: {"d-fixture-1":{"en":"New preprint: a phenome-wide view of heritability enrichment.\n\n· 70 loci at FDR 5% across 444 GWAS\n· closed-form estimates, cost flat in trait count\n\nhttps://example.org/papers/example","zh":"新 preprint：把多个 GWAS 放在一起看遗传力富集在哪里。\n\n· 444 个 GWAS 里 70 个位点（FDR 5%）\n· 闭式解，代价不随性状数增长\n\nhttps://example.org/papers/example"},"d-fixture-2":{"en":"Acme v1.2.3 is out.\n\nhttps://example.org/releases/v1.2.3","zh":"Acme v1.2.3 已发布。\n\nhttps://example.org/releases/v1.2.3"},"d-fixture-3":{"en":"Acme v1.2.4 is out.\n\nhttps://example.org/releases/v1.2.4","zh":"Acme v1.2.4 已发布。"}} };
+</script>
+<script>
+// 极简 React 替身：只够渲染本插件的面板
+// 支持 createElement / useState / useEffect(带 deps) / useCallback，并对失控重渲染设上限（防止无头浏览器卡死）。
+function createElement(type, props) {
+  const children = [];
+  for (let i = 2; i < arguments.length; i += 1) {
+    const c = arguments[i];
+    if (c === null || c === undefined || c === false) continue;
+    if (Array.isArray(c)) {
+      for (const item of c) if (item !== null && item !== undefined && item !== false) children.push(item);
+    } else children.push(c);
+  }
+  return { type, props: Object.assign({}, props || {}), children };
+}
+
+let hookIndex = 0;
+let hookStore = [];
+let pendingEffects = [];
+let rerender = null;
+let renderCount = 0;
+
+function useState(initial) {
+  const index = hookIndex++;
+  if (!(index in hookStore)) hookStore[index] = { value: initial };
+  const cell = hookStore[index];
+  const set = (next) => {
+    const value = typeof next === "function" ? next(cell.value) : next;
+    if (value === cell.value) return;
+    cell.value = value;
+    if (typeof rerender === "function") rerender();
+  };
+  return [cell.value, set];
+}
+
+function depsChanged(a, b) {
+  if (a === undefined || b === undefined) return true;
+  if (a.length !== b.length) return true;
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return true;
+  return false;
+}
+
+function useEffect(fn, deps) {
+  const index = hookIndex++;
+  const cell = hookStore[index] || (hookStore[index] = { ran: false, deps: undefined });
+  if (!cell.ran || depsChanged(cell.deps, deps)) {
+    cell.ran = true;
+    cell.deps = deps;
+    pendingEffects.push(fn);
+  }
+}
+
+function useCallback(fn) {
+  const index = hookIndex++;
+  const cell = hookStore[index] || (hookStore[index] = { fn });
+  return cell.fn;
+}
+
+const React = { createElement, useState, useEffect, useCallback };
+
+function applyStyle(el, style) { if (style) { for (const k in style) el.style[k] = style[k]; } }
+
+function renderNode(node) {
+  if (node === null || node === undefined || node === false || node === true) return document.createTextNode("");
+  if (typeof node === "string" || typeof node === "number") return document.createTextNode(String(node));
+  if (Array.isArray(node)) {
+    const frag = document.createDocumentFragment();
+    for (const child of node) frag.appendChild(renderNode(child));
+    return frag;
+  }
+  if (typeof node.type === "function") {
+    return renderNode(node.type(Object.assign({}, node.props, { children: node.children })));
+  }
+  const el = document.createElement(node.type);
+  applyStyle(el, node.props.style);
+  if (node.props.title) el.title = node.props.title;
+  if (node.props.type === "button") el.type = "button";
+  if (node.props.disabled) el.disabled = true;
+  if (typeof node.props.onClick === "function") el.addEventListener("click", node.props.onClick);
+  for (const child of node.children) el.appendChild(renderNode(child));
+  return el;
+}
+
+function mount(root, element) {
+  const draw = () => {
+    renderCount += 1;
+    if (renderCount > 40) {
+      console.error("mini-react: too many renders, stop");
+      return;
+    }
+    hookIndex = 0;
+    pendingEffects = [];
+    root.replaceChildren(renderNode(element));
+    const effects = pendingEffects.slice();
+    pendingEffects = [];
+    for (const fn of effects) {
+      try { fn(); } catch (e) { console.error("effect failed", e); }
+    }
+  };
+  rerender = draw;
+  hookIndex = 0;
+  hookStore = [];
+  renderCount = 0;
+  draw();
+}
+</script>
+<script>
+// 桩掉面板用到的三个接口：数据来自真实草稿（build-harness.mjs 生成）
+function jsonResponse(body, status) {
+  return Promise.resolve({
+    ok: (status || 200) < 400,
+    status: status || 200,
+    json: function () { return Promise.resolve(body); },
+    text: function () { return Promise.resolve(JSON.stringify(body)); }
+  });
+}
+function textResponse(text, status) {
+  return Promise.resolve({
+    ok: (status || 200) < 400,
+    status: status || 200,
+    json: function () { return Promise.resolve({ ok: false, error: "text" }); },
+    text: function () { return Promise.resolve(text); }
+  });
+}
+window.fetch = function (url) {
+  const target = String(url);
+  if (target.indexOf("/post-draft/list") === 0) return jsonResponse(window.__HARNESS__.data);
+  if (target.indexOf("/post-draft/mark-posted") === 0) return jsonResponse({ ok: true, status: "published" });
+  if (target.indexOf("/post-draft/copy") === 0) {
+    const idMatch = target.match(/id=([^&]*)/);
+    const partMatch = target.match(/part=([a-z]+)/);
+    const id = idMatch ? decodeURIComponent(idMatch[1]) : "";
+    const part = partMatch ? partMatch[1] : "en";
+    const bundle = window.__HARNESS__.copyTexts[id] || {};
+    return textResponse(bundle[part] || "");
+  }
+  return jsonResponse({ ok: false, error: "unstubbed " + target }, 404);
+};
+// 捕获真正交给剪贴板的文本（等价于「粘贴出来」的内容）
+try {
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: {
+      writeText: function (text) {
+        if (String(location.search).indexOf("forcefallback=1") !== -1) return Promise.reject(new Error("NotAllowedError"));
+        window.__LAST_COPIED__ = text;
+        return Promise.resolve();
+      },
+      readText: function () { return Promise.resolve(window.__LAST_COPIED__ || ""); }
+    }
+  });
+} catch (e) { console.warn("clipboard stub failed", e); }
+
+window.__ModuleLoader__ = {
+  load(def) {
+    const mod = def.factory(function (name) { if (name === "react") return React; throw new Error("require " + name); });
+    const pane = document.getElementById("pane");
+    // 1) 用宿主接口形状的数据挂上 panel
+    const Panel = mod.__internals.Panel;
+    mount(pane, React.createElement(Panel, {}));
+    // 2) 复制验证：等首屏渲染完，点第一个「复制 EN」，把剪贴板/降级结果写进 #copied
+    const AUTO = String(location.search || "").indexOf("copy=1") !== -1;
+    setTimeout(function () {
+      if (!AUTO) { return; }
+      const buttons = Array.prototype.slice.call(pane.querySelectorAll("button"));
+      const copyEn = buttons.filter(function (b) { return b.textContent === "复制 EN"; })[0];
+      if (!copyEn) { document.getElementById("copied").textContent = "NO_COPY_BUTTON"; return; }
+      copyEn.click();
+      setTimeout(function () {
+        const out = document.getElementById("copied");
+        const areas = document.querySelectorAll("textarea");
+        const selected = areas.length ? areas[areas.length - 1].value : "";
+        const toast = (pane.textContent.match(/(已复制[^（]*（[^）]*）|已选中文本[^。]*)/) || [""])[0];
+        out.innerHTML = "<b>copy result</b><pre>toast = " + JSON.stringify(toast) +
+          "\npasted = " + JSON.stringify(window.__LAST_COPIED__ || "") +
+          "\nleftover textarea = " + JSON.stringify(selected).slice(0, 200) + "</pre>";
+        window.__COPY_DONE__ = true;
+      }, 500);
+    }, 300);
+  }
+};
+// dsh-post-draft-auto —— 浏览器半部分
+// 在右侧栏注册一个「✍ 出稿」页签：列草稿、每行复制 EN/ZH、标记已发。
+// 数据来自宿主半部分注册的 /post-draft/* 接口（不依赖 4789 网页工作台）。
+window.__ModuleLoader__.load({
+  id: "dsh-post-draft-auto",
+  factory: (require) => {
+    const React = require("react");
+    const h = React.createElement;
+
+    const TAB_ID = "post-draft";
+    const TAB_KIND = "post-draft";
+    const TAB_ICON = "✍";
+    const TAB_TITLE = "出稿";
+
+    // ---------- 复制（带降级；测试通过 __internals 直接调用） ----------
+    async function copyText(text, deps) {
+      const d = deps || {};
+      const nav = d.navigator !== undefined ? d.navigator : (typeof navigator !== "undefined" ? navigator : undefined);
+      const doc = d.document !== undefined ? d.document : (typeof document !== "undefined" ? document : undefined);
+      if (nav && nav.clipboard && typeof nav.clipboard.writeText === "function") {
+        try {
+          await nav.clipboard.writeText(text);
+          return { ok: true, method: "clipboard" };
+        } catch (error) {
+          // 非 HTTPS / 非 localhost 时浏览器可能拒绝，继续走降级
+        }
+      }
+      if (!doc || typeof doc.createElement !== "function" || !doc.body) {
+        return { ok: false, method: "none", error: "没有可用的剪贴板或文档" };
+      }
+      const area = doc.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "readonly");
+      area.style.position = "fixed";
+      area.style.top = "-1000px";
+      area.style.left = "0";
+      area.style.opacity = "0";
+      doc.body.appendChild(area);
+      try { area.focus(); } catch (e) {}
+      try { area.select(); } catch (e) {}
+      let copied = false;
+      try { copied = !!(doc.execCommand && doc.execCommand("copy")); } catch (e) { copied = false; }
+      if (copied) {
+        try { doc.body.removeChild(area); } catch (e) {}
+        return { ok: true, method: "execCommand" };
+      }
+      return { ok: false, method: "selected", selection: area, error: "execCommand 被拒绝" };
+    }
+
+    // ---------- 数据 ----------
+    function fetchJson(path, init) {
+      return fetch(path, init).then(function (response) {
+        return response.json().then(function (json) {
+          if (!response.ok || !json || json.ok !== true) {
+            const error = new Error((json && (json.error || (json.guard && json.guard.message))) || ("HTTP " + response.status));
+            error.status = response.status;
+            error.payload = json;
+            throw error;
+          }
+          return json;
+        });
+      });
+    }
+
+    // ---------- 样式 ----------
+    const S = {
+      root: { display: "flex", flexDirection: "column", height: "100%", minHeight: 0, font: "13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
+      header: { display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(127,127,127,0.22)", flex: "0 0 auto" },
+      title: { fontWeight: 600, fontSize: 13, flex: 1 },
+      btn: { border: "1px solid rgba(127,127,127,0.32)", background: "transparent", color: "inherit", borderRadius: 6, padding: "2px 8px", fontSize: 11, cursor: "pointer" },
+      btnPrimary: { border: "1px solid rgba(127,127,127,0.32)", background: "rgba(127,127,127,0.12)", color: "inherit", borderRadius: 6, padding: "2px 8px", fontSize: 11, cursor: "pointer", fontWeight: 600 },
+      btnDisabled: { border: "1px solid rgba(127,127,127,0.16)", background: "transparent", color: "inherit", borderRadius: 6, padding: "2px 8px", fontSize: 11, opacity: 0.45, cursor: "not-allowed" },
+      body: { overflowY: "auto", padding: "8px 12px 16px", flex: "1 1 auto", minHeight: 0 },
+      card: { border: "1px solid rgba(127,127,127,0.22)", borderRadius: 8, padding: "8px 10px", marginBottom: 10 },
+      cardTop: { display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" },
+      cardTitle: { fontWeight: 600, fontSize: 12.5, flex: "1 1 100%", wordBreak: "break-word", marginBottom: 3 },
+      tag: { fontSize: 10, padding: "1px 6px", borderRadius: 999, border: "1px solid rgba(127,127,127,0.35)", opacity: 0.85, whiteSpace: "nowrap" },
+      tagAI: { fontSize: 10, padding: "1px 6px", borderRadius: 999, border: "1px solid rgba(56,189,248,0.55)", color: "#7dd3fc", whiteSpace: "nowrap" },
+      weight: { fontSize: 11, opacity: 0.6, marginLeft: 4, fontVariantNumeric: "tabular-nums" },
+      weightOver: { fontSize: 11, color: "#f87171", marginLeft: 4, fontWeight: 600, fontVariantNumeric: "tabular-nums" },
+      actions: { display: "flex", gap: 6, marginTop: 7, flexWrap: "wrap", alignItems: "center" },
+      pending: { marginTop: 7, padding: "6px 8px", borderRadius: 6, background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.35)", fontSize: 11.5 },
+      pendingTitle: { fontWeight: 600, marginBottom: 2 },
+      guard: { marginTop: 7, padding: "6px 8px", borderRadius: 6, background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.4)", fontSize: 11.5 },
+      empty: { opacity: 0.55, fontSize: 12, padding: "24px 8px", textAlign: "center", lineHeight: 1.7 },
+      error: { color: "#ff9a9a", fontSize: 12, padding: "6px 0" },
+      toast: { margin: "6px 12px 0", padding: "6px 9px", borderRadius: 6, fontSize: 11.5, background: "rgba(20,184,166,0.16)", border: "1px solid rgba(20,184,166,0.4)" },
+      toastError: { margin: "6px 12px 0", padding: "6px 9px", borderRadius: 6, fontSize: 11.5, background: "rgba(248,113,113,0.16)", border: "1px solid rgba(248,113,113,0.45)" }
+    };
+
+    const STATUS_LABEL = { drafted: "待发", copied: "已复制", published: "已发", discarded: "丢弃" };
+
+    function Badge(props) {
+      const style = props.ai ? S.tagAI : S.tag;
+      return h("span", { style }, props.children);
+    }
+
+    function DraftCard(props) {
+      const draft = props.draft;
+      const over = draft.enWeight > draft.limit || draft.zhWeight > draft.limit;
+      const blocked = !!(draft.guard);
+      const canPost = draft.status !== "published" && !blocked;
+      return h(
+        "div",
+        { style: S.card },
+        h("div", { style: S.cardTop },
+          h("span", { style: S.cardTitle }, draft.title || draft.id),
+          h(Badge, { ai: draft.generatedBy === "model" }, draft.generatedBy === "model" ? "AI 生成" : "模板生成"),
+          h(Badge, null, STATUS_LABEL[draft.status] || draft.status),
+          h("span", { style: over ? S.weightOver : S.weight }, "EN " + draft.enWeight + "/" + draft.limit),
+          h("span", { style: over ? S.weightOver : S.weight }, "ZH " + draft.zhWeight + "/" + draft.limit)
+        ),
+        blocked
+          ? h("div", { style: S.guard }, "先别发：" + (draft.guard === "pending-rollout" ? "本地已 bump、线上还没上线" : draft.guard))
+          : null,
+        draft.pending && draft.pending.length
+          ? h("div", { style: S.pending },
+              h("div", { style: S.pendingTitle }, "待补 " + draft.pending.length + " 处"),
+              draft.pending.slice(0, 4).map(function (item, index) { return h("div", { key: "p" + index }, "· " + item); })
+            )
+          : null,
+        h("div", { style: S.actions },
+          h("button", {
+            type: "button",
+            style: blocked ? S.btnDisabled : S.btnPrimary,
+            disabled: blocked,
+            onClick: function () { props.onCopy(draft.id, "en"); }
+          }, "复制 EN"),
+          h("button", {
+            type: "button",
+            style: blocked ? S.btnDisabled : S.btnPrimary,
+            disabled: blocked,
+            onClick: function () { props.onCopy(draft.id, "zh"); }
+          }, "复制 ZH"),
+          h("button", {
+            type: "button",
+            style: canPost ? S.btn : S.btnDisabled,
+            disabled: !canPost,
+            onClick: function () { props.onPosted(draft.id); }
+          }, draft.status === "published" ? "已发 ✓" : "已发")
+        )
+      );
+    }
+
+    function Panel() {
+      const [state, setState] = React.useState({ loading: true, error: null, drafts: [] });
+      const [toast, setToast] = React.useState(null);
+
+      const load = React.useCallback(function () {
+        setState(function (prev) { return { loading: true, error: null, drafts: prev.drafts }; });
+        fetchJson("/post-draft/list", { method: "GET" }).then(
+          function (json) { setState({ loading: false, error: null, drafts: json.drafts || [] }); },
+          function (error) { setState({ loading: false, error: String((error && error.message) || error), drafts: [] }); }
+        );
+      }, []);
+
+      React.useEffect(function () { load(); }, [load]);
+
+      function showToast(message, isError) {
+        setToast({ message, isError: !!isError });
+        if (typeof setTimeout === "function") setTimeout(function () { setToast(null); }, 3200);
+      }
+
+      function onCopy(id, part) {
+        fetch("/post-draft/copy?id=" + encodeURIComponent(id) + "&part=" + part)
+          .then(function (response) {
+            if (!response.ok) {
+              return response.json().then(function (json) { throw new Error((json && json.error) || ("HTTP " + response.status)); });
+            }
+            return response.text();
+          })
+          .then(function (body) { return copyText(body); })
+          .then(function (result) {
+            if (result.ok) {
+              showToast("已复制 " + (part === "en" ? "英文主推" : "中文回复") + "（" + result.method + "）");
+              load();
+            } else {
+              showToast(["已选中文本，请按 ⌘C 复制", result.error].filter(Boolean).join("；"), true);
+            }
+          })
+          .catch(function (error) { showToast("复制失败：" + String((error && error.message) || error), true); });
+      }
+
+      function onPosted(id) {
+        fetchJson("/post-draft/mark-posted", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id })
+        }).then(
+          function () { showToast("已记录到台账，同 source_key 不会再出稿"); load(); },
+          function (error) { showToast("标记失败：" + String((error && error.message) || error), true); }
+        );
+      }
+
+      return h("div", { style: S.root },
+        h("div", { style: S.header },
+          h("span", { style: S.title }, TAB_ICON + " " + TAB_TITLE),
+          h("button", { type: "button", style: S.btn, title: "刷新", onClick: load }, "刷新")
+        ),
+        toast ? h("div", { style: toast.isError ? S.toastError : S.toast }, toast.message) : null,
+        h("div", { style: S.body },
+          state.error ? h("div", { style: S.error }, "读取失败：" + state.error) : null,
+          state.loading && state.drafts.length === 0 ? h("div", { style: S.empty }, "读取中…") : null,
+          !state.loading && !state.error && state.drafts.length === 0
+            ? h("div", { style: S.empty },
+                h("div", null, "还没有草稿"),
+                h("div", null, "跟 agent 说「我刚发了 XXX」就会出稿")
+              )
+            : null,
+          state.drafts.map(function (draft) {
+            return h(DraftCard, { key: draft.id, draft, onCopy, onPosted });
+          })
+        )
+      );
+    }
+
+    function TabIcon() {
+      return h("span", { "aria-hidden": "true", style: { fontSize: 15, lineHeight: 1 } }, TAB_ICON);
+    }
+
+    function TabTitle() {
+      return h("span", { style: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, lineHeight: 1.2 } },
+        h("span", { "aria-hidden": "true", style: { fontSize: 12 } }, TAB_ICON),
+        h("span", null, TAB_TITLE)
+      );
+    }
+
+    function apply(ctx) {
+      const get = function (name) {
+        try { return ctx.get(name); } catch (e) { return undefined; }
+      };
+      const slots = get("slots");
+      const tabs = get("sidebarRightTabs");
+      if (!slots) return;
+      try {
+        if (tabs && typeof tabs.register === "function") {
+          ctx.effect(function () {
+            return tabs.register({
+              id: TAB_ID,
+              kind: TAB_KIND,
+              title: function () { return TAB_TITLE; },
+              guide: [{
+                id: "open",
+                order: 73,
+                title: function () { return TAB_TITLE; },
+                description: function () { return "草稿列表：复制 EN/ZH、标记已发"; },
+                icon: TabIcon
+              }]
+            });
+          });
+        }
+        slots.inject("sidebar.right.pane.tab", function () {
+          return slots.register({ name: "sidebar.right.pane.tab", key: TAB_ID, inject: function () { return {}; } }, Panel);
+        });
+        slots.inject("sidebar.right.pane.tab.title", function () {
+          return slots.register({ name: "sidebar.right.pane.tab.title", key: TAB_ID, inject: function () { return {}; } }, TabTitle);
+        });
+      } catch (error) {
+        try { console.warn("dsh-post-draft-auto: panel not mounted:", error); } catch (e) {}
+      }
+    }
+
+    return {
+      name: "dsh-post-draft-auto",
+      inject: ["slots", "sidebarRightTabs"],
+      apply,
+      __internals: { copyText, Panel, DraftCard }
+    };
+  }
+});
+
+</script>
+</body>
+</html>

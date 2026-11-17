@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>出稿工作台 · Acme / DSH</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="dot"></span>
+    <strong>出稿工作台</strong>
+    <span class="muted">生成 → 复制 → 你自己去 X 发</span>
+  </div>
+  <div class="tools">
+    <button id="collectBtn" class="ghost">扫描源</button>
+    <button id="refreshBtn" class="ghost">刷新</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="side">
+    <div class="filters" id="filters">
+      <button data-filter="all" class="chip active">全部</button>
+      <button data-filter="drafted" class="chip">待发</button>
+      <button data-filter="copied" class="chip">已复制</button>
+      <button data-filter="published" class="chip">已发</button>
+      <button data-filter="discarded" class="chip">丢弃</button>
+    </div>
+    <form id="manualForm" class="manual">
+      <textarea id="manualText" rows="3" placeholder="手动出稿：例如「我刚发了 Acme v1.1.0 和一篇 preprint」"></textarea>
+      <button type="submit">出稿</button>
+    </form>
+    <div id="list" class="list"></div>
+    <div class="sidefoot">
+      <div id="stats" class="muted small"></div>
+      <details id="sourcesBox">
+        <summary class="small">来源状态</summary>
+        <div id="sources" class="small"></div>
+      </details>
+    </div>
+  </aside>
+
+  <main id="detail" class="detail">
+    <div class="empty">
+      <h2>从左边选一条草稿</h2>
+      <p class="muted">或者在上面输入一句话手动出稿。这个工作台不会替你发推，也不会碰任何 X 账号。</p>
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="/app.js"></script>
+</body>
+</html>

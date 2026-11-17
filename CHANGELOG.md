@@ -1,0 +1,37 @@
+# Changelog
+
+所有值得记录的变更都写在这里。版本号遵循 semver；本包在 0.x 阶段不承诺 API 稳定。
+
+## 0.3.0 — 2026-11-18
+
+### 新增
+- **侧栏「出稿」面板**（DSH 客户端插件）：在 DSH 右侧栏注册一个页签，列出草稿，每行「复制 EN / 复制 ZH / 已发」，不用再打开本地网页工作台。
+  - 宿主半部分通过 `ctx.webServer.register` 暴露三个同源接口：`GET /post-draft/list`、`GET /post-draft/copy`、`POST /post-draft/mark-posted`。
+  - 浏览器半部分（`lib/client.js`）不依赖构建工具，由 DSH 的模块加载器直接加载；React 由宿主注入。
+  - 复制三级降级：`navigator.clipboard` → 临时 `textarea` + `execCommand("copy")` → 保留选中并提示按 ⌘C。
+- `package.json` 增加 `dsh.client` 与 `exports["./client"]`；`lib/plugin.mjs` 的 `inject` 增加 `webServer`。
+
+### 文档
+- `docs/侧栏面板.md`：面板的接线方式、验证步骤；`docs/panel-harness.*` 用于在不重启 DSH 的情况下渲染同一份面板代码并验证复制链路。
+
+## 0.2.0 — 2026-11-17
+
+### 新增
+- **AI 写稿链路**：四个模型可调用工具 `post_facts` / `post_save` / `post_list` / `post_mark_posted`，插件与 CLI 共用 `lib/tools.mjs` 一份实现。
+  - `post_facts` 抓带 `sourceUrl` 的真实事实：bioRxiv/medRxiv DOI、产品版本（线上端点 + 本地版本文件双源）、npm 包、任意 URL、一句话。
+  - `post_save` 由模型自己写 EN 主推 + ZH 回复 + 卡片文案；模板只作 fallback，草稿上用 `generatedBy: "model" | "template"` 标出来。
+  - 计权长度在落盘时就校验（CJK 按 2 计），超标直接拦。
+- 事实与正文的一致性校验：正文里出现的版本号/日期/百分数/作者名必须能在 facts 里找到，找不到就标「待补」并写进 `pending`。
+- 双源一致性守卫：线上版本端点与本地版本文件不一致时，复制与「已发」都会被拒绝（本地新 → `pending-rollout`；线上新 → 提醒核对）。
+- 发布说明事实链路：功能点只从配置的 `releaseNotesFiles` 里取；没有该版条目就退到参考文件原文；两处都没有则留「待补」，不编。
+
+## 0.1.0 — 2026-11-16
+
+### 新增
+- 本地出稿工作台（零依赖 HTTP 服务 + 单页 UI）：草稿列表、EN/ZH 计权、卡片图、事实表、复制、标记已发、本地台账。
+- 采集器：npm / GitHub Releases / bioRxiv（json-api）/ RSS / arXiv / 站点版本，都能用配置开关启停。
+- 卡片图渲染：本地 Chrome 无头截图，缺 Chrome 时退回 SVG。
+- X（Twitter）计权长度实现：CJK 与 emoji 按 2 计，URL 统一按 23 计。
+
+### 说明
+- 不调用任何 X 写接口，不需要 cookie、token 或 API key；发布由人手动复制粘贴完成。

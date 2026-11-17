@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>出稿面板（harness）</title>
+<style>
+  body { margin: 0; background: #0f172a; color: #e2e8f0; }
+  #pane { width: 420px; height: 640px; border-right: 1px solid #1e293b; display: flex; flex-direction: column; }
+  #log { position: fixed; left: 432px; top: 0; width: 520px; padding: 12px; font: 12px/1.6 ui-monospace, monospace; color: #94a3b8; }
+  #log b { color: #e2e8f0; }
+  pre { white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body>
+<div id="pane"></div>
+<div id="log"><b>harness</b>（真数据、桩 fetch）<div id="copied"></div></div>
+<script>
+window.__HARNESS__ = { data: /*__DATA__*/ null, copyTexts: /*__COPY__*/ null };
+</script>
+<script>
+/*__MINIREACT__*/
+</script>
+<script>
+// 桩掉面板用到的三个接口：数据来自真实草稿（build-harness.mjs 生成）
+function jsonResponse(body, status) {
+  return Promise.resolve({
+    ok: (status || 200) < 400,
+    status: status || 200,
+    json: function () { return Promise.resolve(body); },
+    text: function () { return Promise.resolve(JSON.stringify(body)); }
+  });
+}
+function textResponse(text, status) {
+  return Promise.resolve({
+    ok: (status || 200) < 400,
+    status: status || 200,
+    json: function () { return Promise.resolve({ ok: false, error: "text" }); },
+    text: function () { return Promise.resolve(text); }
+  });
+}
+window.fetch = function (url) {
+  const target = String(url);
+  if (target.indexOf("/post-draft/list") === 0) return jsonResponse(window.__HARNESS__.data);
+  if (target.indexOf("/post-draft/mark-posted") === 0) return jsonResponse({ ok: true, status: "published" });
+  if (target.indexOf("/post-draft/copy") === 0) {
+    const idMatch = target.match(/id=([^&]*)/);
+    const partMatch = target.match(/part=([a-z]+)/);
+    const id = idMatch ? decodeURIComponent(idMatch[1]) : "";
+    const part = partMatch ? partMatch[1] : "en";
+    const bundle = window.__HARNESS__.copyTexts[id] || {};
+    return textResponse(bundle[part] || "");
+  }
+  return jsonResponse({ ok: false, error: "unstubbed " + target }, 404);
+};
+// 捕获真正交给剪贴板的文本（等价于「粘贴出来」的内容）
+try {
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: {
+      writeText: function (text) {
+        if (String(location.search).indexOf("forcefallback=1") !== -1) return Promise.reject(new Error("NotAllowedError"));
+        window.__LAST_COPIED__ = text;
+        return Promise.resolve();
+      },
+      readText: function () { return Promise.resolve(window.__LAST_COPIED__ || ""); }
+    }
+  });
+} catch (e) { console.warn("clipboard stub failed", e); }
+
+window.__ModuleLoader__ = {
+  load(def) {
+    const mod = def.factory(function (name) { if (name === "react") return React; throw new Error("require " + name); });
+    const pane = document.getElementById("pane");
+    // 1) 用宿主接口形状的数据挂上 panel
+    const Panel = mod.__internals.Panel;
+    mount(pane, React.createElement(Panel, {}));
+    // 2) 复制验证：等首屏渲染完，点第一个「复制 EN」，把剪贴板/降级结果写进 #copied
+    const AUTO = String(location.search || "").indexOf("copy=1") !== -1;
+    setTimeout(function () {
+      if (!AUTO) { return; }
+      const buttons = Array.prototype.slice.call(pane.querySelectorAll("button"));
+      const copyEn = buttons.filter(function (b) { return b.textContent === "复制 EN"; })[0];
+      if (!copyEn) { document.getElementById("copied").textContent = "NO_COPY_BUTTON"; return; }
+      copyEn.click();
+      setTimeout(function () {
+        const out = document.getElementById("copied");
+        const areas = document.querySelectorAll("textarea");
+        const selected = areas.length ? areas[areas.length - 1].value : "";
+        const toast = (pane.textContent.match(/(已复制[^（]*（[^）]*）|已选中文本[^。]*)/) || [""])[0];
+        out.innerHTML = "<b>copy result</b><pre>toast = " + JSON.stringify(toast) +
+          "\npasted = " + JSON.stringify(window.__LAST_COPIED__ || "") +
+          "\nleftover textarea = " + JSON.stringify(selected).slice(0, 200) + "</pre>";
+        window.__COPY_DONE__ = true;
+      }, 500);
+    }, 300);
+  }
+};
+/*__CLIENT__*/
+</script>
+</body>
+</html>

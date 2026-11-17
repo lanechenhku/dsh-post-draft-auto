@@ -1,0 +1,103 @@
+{
+  "port": 4789,
+  "brand": {
+    "name": "Your product",
+    "product": "DeepSeek Harness",
+    "color": "#0d8b8f",
+    "accent": "#087b70",
+    "footer": "example.com",
+    "detectedFrom": "your product site CSS + local styles.css (adjust by hand)"
+  },
+  "limits": {
+    "tweet": 280,
+    "urlWeight": 23
+  },
+  "releaseNotesFiles": [
+    "docs/releases.md"
+  ],
+  "authorName": "<your name as printed on the paper>",
+  "sources": {
+    "npm": [
+      {
+        "id": "dsh",
+        "pkg": "@deepseek-ai/dsh",
+        "label": "DeepSeek Harness (npm)",
+        "enabled": true,
+        "includePrerelease": false
+      }
+    ],
+    "github": [
+      {
+        "id": "product",
+        "repo": "your-org/your-repo",
+        "label": "Release notes repo (off by default)",
+        "enabled": false,
+        "note": "Uncomment by setting enabled:true once the repo is public, or configure a token elsewhere if it is private — this tool does not store credentials."
+      }
+    ],
+    "jsonapi": [
+      {
+        "id": "biorxiv",
+        "preset": "biorxiv",
+        "label": "bioRxiv / medRxiv preprint by DOI",
+        "enabled": false,
+        "url": "",
+        "author": "<your name as printed on the paper>",
+        "authorField": "authors",
+        "authorMatch": "contains",
+        "itemsPath": "collection",
+        "note": "The DOI path is the main entry point (post_facts { doi }). Fill author to get author matching; empty author means the 'author' facts are skipped with a 待补 note."
+      }
+    ],
+    "rss": [
+      {
+        "id": "blog",
+        "url": "",
+        "label": "Blog RSS/Atom feed",
+        "enabled": false,
+        "note": "Fill url and set enabled:true."
+      }
+    ],
+    "arxiv": [
+      {
+        "id": "author",
+        "label": "arXiv (off by default)",
+        "enabled": false,
+        "query": "au:\"...\"",
+        "note": "Kept for compatibility; prefer the generic json-api / rss adapter instead of code changes."
+      }
+    ],
+    "site": [
+      {
+        "id": "product",
+        "label": "Product version (online endpoint + local version file)",
+        "enabled": false,
+        "url": "https://example.com/version.json",
+        "versionKey": "version",
+        "local": {
+          "file": "<path-to-your-product-repo>/version.json",
+          "versionKey": "version"
+        },
+        "link": "https://example.com/",
+        "referenceFile": "<path-to-your-product-repo>/docs/CHANGELOG.md",
+        "releaseNotesFiles": [
+          "docs/releases.md"
+        ],
+        "note": "This is the generic 'did we actually ship it' guard: the online endpoint and the local version file must agree, otherwise copy / mark-posted are refused (409). Point url and local.file at your own product and set enabled:true. Feature bullets only come from releaseNotesFiles; if the version is missing there it falls back to referenceFile quotes, and with neither it stays 待补."
+      }
+    ]
+  },
+  "voice": {
+    "banned": [
+      "excited to announce",
+      "game-changer",
+      "revolutionary",
+      "颠覆",
+      "史上最强",
+      "震撼发布",
+      "重磅"
+    ],
+    "maxHashtags": 2,
+    "maxEmoji": 3
+  }
+}

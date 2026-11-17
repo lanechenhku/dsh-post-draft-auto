@@ -1,0 +1,10 @@
+# dsh-post-draft-auto：把出稿工作台的四个工具挂进宿主进程
+# 安装（手工，profile 的 link: 依赖 + bundles）：
+#   1) 在 ~/.dsh/profiles/desktop/package.json 的 dependencies 加
+#        "dsh-post-draft-auto": "link:<path-to-this-repo>"
+#   2) 在 dsh.profile.bundles 数组里追加 "dsh-post-draft-auto"
+#   3) 重启 DSH（或让它重新加载 profile）
+# 本插件没有浏览器半部分（不声明 dsh.client），所以不需要构建前端。
+- insert:
+    - id: post-draft-auto
+      name: 'dsh-post-draft-auto'
