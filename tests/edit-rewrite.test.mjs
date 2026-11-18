@@ -378,6 +378,7 @@ test("target：返回最近活动会话，过滤子代理", async function () {
   const payload = JSON.parse(res.state.body);
   assert.equal(payload.session.sessionId, "sess-9");
   assert.equal(payload.session.running, true);
+  assert.equal(payload.session.short, "sess-9");
   assert.equal(payload.source, "recent");
 });
 
