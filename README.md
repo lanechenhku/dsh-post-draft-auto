@@ -2,7 +2,7 @@
 
 **简体中文** · [English](#english)
 
-把「我发了 X」变成两条能直接粘进 X 的稿子 + 一张卡片图。
+不管是你自己发了东西（`我发了 X`），还是我刚替你做完一件事（`你给我做了 X，我要发个推`）——都能变成两条能直接粘进 X 的稿子 + 一张卡片图。
 模型先用工具抓**带来源的真实事实**，再自己写中英双语；**发布永远是你手动复制粘贴**。
 
 **怎么用：在 DSH 里跟 agent 说一句「我刚发了 …」就行** —— 不用打开任何界面。它抓完事实、写完中英双语
@@ -31,7 +31,7 @@
 
 | 谁 | 发生了什么 |
 |---|---|
-| 你说 | `我刚发了一篇 preprint，DOI 是 ⟨你的 DOI⟩`（或者：`链接 https://…`） |
+| 你说 | 两种都行：`我刚发了一篇 preprint，DOI 是 ⟨你的 DOI⟩`（发布型）／`你给我做的 ⟨插件/版本⟩ 上线了，我要发个推`（成果型） |
 | agent 做 | `post_facts` 抓标题 / 日期 / 版本 / 作者 / 单位 / 摘要，**每条带 `sourceUrl`** → 自己写英文主推 + 中文回复 + 卡片文案 → `post_save` 落盘 |
 | 你拿到 | 英文主推 + 中文回复（各自标计权字数，**超 280 会被拦**）+ 卡片图 + 能点回源头的事实表 |
 | 你发完 | 回来说一声 → `post_mark_posted` 写进 `state/posted.jsonl` 台账 |
@@ -274,7 +274,7 @@ npm test        # = node --test tests/
 
 # dsh-post-draft-auto (English)
 
-Turn "I just shipped X" into two posts you can paste straight into X, plus a card image.
+Whether you shipped something yourself ("I just shipped X") or the agent just built it for you ("you made me X, I want to post about it"), it turns into two posts you can paste straight into X, plus a card image.
 The model first pulls **real facts with sources**, then writes EN + ZH itself — **you still publish by hand**.
 
 **How to use it: open DSH and tell the agent "I just shipped …"** — no UI to open. It pulls the facts, writes
