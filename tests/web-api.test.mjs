@@ -68,6 +68,9 @@ test("GET /post-draft/list 返回轻量列表（不含正文、排除 discarded�
   assert.equal(row.generatedBy, "model");
   assert.equal(row.enWeight, 42);
   assert.deepEqual(row.pending, ["待补：中文一句话"]);
+  assert.equal(row.pendingCount, 1, "列表行带 pendingCount");
+  assert.equal(row.blockerCount, 0);
+  assert.deepEqual(row.blockers, []);
   assert.equal(row.enText, undefined, "列表不返回正文");
   assert.ok(!payload.drafts.some((d) => d.status === "discarded"), "丢弃的不出现");
 });

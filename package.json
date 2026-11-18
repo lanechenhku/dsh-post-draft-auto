@@ -1,7 +1,7 @@
 {
   "name": "dsh-post-draft-auto",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "module",
   "description": "Local draft desk for DeepSeek Harness: post_facts pulls sourced facts (bioRxiv DOI / Acme version / npm package / URL), the model writes EN + ZH posts and a card, and you paste them into X yourself. Zero dependencies, no X API, no credentials.",
   "repository": {

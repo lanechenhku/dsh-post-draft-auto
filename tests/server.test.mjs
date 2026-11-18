@@ -165,3 +165,53 @@ test("guard 解除后可以正常复制与标已发", async function () {
   assert.equal(pub.status, 200);
   assert.equal(store.readPosted().length, 2);
 });
+test("GET /api/drafts 保留 generatedBy（model 不被降级成 template）", async function () {
+  const modelDraft = store.createDraft({
+    sourceKey: "paper:test:generated-by",
+    source: { kind: "paper", label: "test", url: "https://example.org/p", version: "v1" },
+    title: "A model-written draft",
+    facts: [{ id: "f1", kind: "title", value: "", detail: "A model-written draft", sourceUrl: "https://example.org/p" }],
+    enText: "A model-written draft.\n\nhttps://example.org/p",
+    zhText: "一条模型写的草稿。\n\nhttps://example.org/p",
+    enWeight: 24,
+    zhWeight: 30,
+    pending: ["待补：中文要点"],
+    blockers: [],
+    warnings: [],
+    card: { title: "T", subtitle: "", version: "v1", bullets: [], brand: config.brand },
+    generatedBy: "model",
+    reference: null,
+    guard: null
+  }, config, { force: true });
+
+  const res = await fetch(base + "/api/drafts");
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  const row = body.drafts.find(function (d) { return d.id === modelDraft.draft.id; });
+  assert.ok(row, "新草稿应出现在 /api/drafts 里");
+  assert.equal(row.generatedBy, "model", "生成的草稿不能被降级成 template");
+  assert.equal(row.pendingCount, 1);
+  assert.equal(row.blockerCount, 0);
+  assert.equal(row.status, "drafted");
+
+  // 没有 generatedBy 的历史草稿仍然按模板兜底，而不是 undefined
+  const legacy = store.createDraft({
+    sourceKey: "paper:test:legacy",
+    source: { kind: "paper", label: "test", url: "https://example.org/q", version: "v1" },
+    title: "A legacy draft",
+    facts: [{ id: "f1", kind: "title", value: "", detail: "A legacy draft", sourceUrl: "https://example.org/q" }],
+    enText: "A legacy draft.\n\nhttps://example.org/q",
+    zhText: "旧草稿。\n\nhttps://example.org/q",
+    enWeight: 20,
+    zhWeight: 18,
+    pending: [],
+    blockers: [],
+    warnings: [],
+    card: { title: "T", subtitle: "", version: "v1", bullets: [], brand: config.brand },
+    reference: null,
+    guard: null
+  }, config, { force: true });
+  const legacyRow = (await (await fetch(base + "/api/drafts")).json()).drafts
+    .find(function (d) { return d.id === legacy.draft.id; });
+  assert.equal(legacyRow.generatedBy, "template");
+});
