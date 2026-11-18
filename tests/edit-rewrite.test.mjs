@@ -12,7 +12,7 @@ const store = await import("../lib/store.mjs");
 const weight = await import("../lib/weight.mjs");
 const { updateDraftText } = store;
 const { buildRewritePrompt, tonesFrom, findTone } = await import("../lib/rewrite.mjs");
-const { routes } = await import("../lib/web-api.mjs");
+const { routes, ROUTE_PATHS } = await import("../lib/web-api.mjs");
 
 const config = {
   limits: { tweet: 280 },
@@ -205,4 +205,175 @@ test("客户端 weighText 与 lib/weight.mjs 结果一致（编辑框数字不�
   samples.forEach(function (s) {
     assert.equal(internals.weighText(s), weight.weightedLength(s), "不一致: " + s);
   });
+});
+test("PUT 与 POST 都能保存（宿主只保证 GET/POST 转发）", async function () {
+  const draft = makeDraft();
+  const putRes = fakeRes();
+  await route("/post-draft/draft").handler(fakeReq("PUT", "/post-draft/draft", { id: draft.id, en: "via PUT", zh: "走 PUT" }), putRes);
+  assert.equal(putRes.state.status, 200);
+
+  const postRes = fakeRes();
+  await route("/post-draft/draft").handler(fakeReq("POST", "/post-draft/draft", { id: draft.id, en: "via POST", zh: "走 POST" }), postRes);
+  assert.equal(postRes.state.status, 200);
+  const saved = store.getDraft(draft.id);
+  assert.equal(saved.enText, "via POST", "POST 必须真的落盘");
+  assert.equal(saved.zhText, "走 POST");
+});
+
+test("GET / DELETE 等不支持的方法回 405（不是空 body）", async function () {
+  const draft = makeDraft();
+  const res = fakeRes();
+  await route("/post-draft/draft").handler(fakeReq("DELETE", "/post-draft/draft?id=" + draft.id), res);
+  assert.equal(res.state.status, 405);
+  const payload = JSON.parse(res.state.body);
+  assert.equal(payload.ok, false);
+  assert.equal(payload.error, "method not allowed");
+});
+
+test("ROUTE_PATHS 与 routes() 完全一致（新增路由不会漏登记）", function () {
+  const paths = routes().map(function (r) { return r.path; }).sort();
+  assert.deepEqual(ROUTE_PATHS.slice().sort(), paths);
+  ["/post-draft/draft", "/post-draft/tones", "/post-draft/rewrite-prompt", "/post-draft/list", "/post-draft/copy", "/post-draft/mark-posted"]
+    .forEach(function (p) { assert.ok(ROUTE_PATHS.indexOf(p) !== -1, "缺路由: " + p); });
+});
+
+test("重写指令开关：facts / voice 可单独关掉", function () {
+  const draft = makeDraft();
+  const full = buildRewritePrompt(draft, config, "neutral", "zh");
+  assert.ok(full.indexOf("v1.2.3") !== -1, "默认带 facts");
+  assert.ok(full.indexOf("excited to announce") !== -1, "默认带禁用词");
+
+  const noFacts = buildRewritePrompt(draft, config, "neutral", "zh", { facts: false });
+  assert.equal(noFacts.indexOf("v1.2.3"), -1, "关掉后不带 facts 明细");
+
+  const noVoice = buildRewritePrompt(draft, config, "neutral", "zh", { voice: false });
+  assert.equal(noVoice.indexOf("excited to announce"), -1, "关掉后不带禁用词");
+  assert.ok(noVoice.indexOf("链接保留") !== -1, "仍然要求保留链接");
+});
+
+test("GET /post-draft/rewrite-prompt 支持 facts=0 / voice=0", async function () {
+  const draft = makeDraft();
+  const off = fakeRes();
+  await route("/post-draft/rewrite-prompt").handler(fakeReq("GET", "/post-draft/rewrite-prompt?id=" + draft.id + "&tone=neutral&lang=zh&facts=0&voice=0"), off);
+  assert.equal(off.state.status, 200);
+  assert.equal(off.state.body.indexOf("v1.2.3"), -1);
+  assert.equal(off.state.body.indexOf("excited to announce"), -1);
+
+  const on = fakeRes();
+  await route("/post-draft/rewrite-prompt").handler(fakeReq("GET", "/post-draft/rewrite-prompt?id=" + draft.id + "&tone=neutral&lang=zh"), on);
+  assert.ok(on.state.body.indexOf("v1.2.3") !== -1);
+});
+
+// ---------- 一键投递（sessionController.prompt） ----------
+
+function fakeController(spec) {
+  const calls = [];
+  const controller = {
+    calls: calls,
+    list: async function () { return { items: spec.items || [] }; },
+    prompt: async function (request, source) {
+      calls.push({ request: request, source: source });
+      if (spec.reject) throw new Error("agent-busy");
+      return { accepted: spec.accepted === false ? false : true };
+    }
+  };
+  return controller;
+}
+
+function routeWith(host, path) {
+  const found = routes(host).filter(function (r) { return r.path === path; })[0];
+  assert.ok(found, "缺失路由: " + path);
+  return found;
+}
+
+test("send-prompt 路由已注册（ROUTE_PATHS 里有）", function () {
+  assert.ok(ROUTE_PATHS.indexOf("/post-draft/send-prompt") !== -1);
+  assert.ok(ROUTE_PATHS.indexOf("/post-draft/target") !== -1);
+});
+
+test("send-prompt：没有宿主能力时 503，客户端据此降级", async function () {
+  const draft = makeDraft();
+  const res = fakeRes();
+  await route("/post-draft/send-prompt").handler(fakeReq("POST", "/post-draft/send-prompt", { id: draft.id }), res);
+  assert.equal(res.state.status, 503);
+  const payload = JSON.parse(res.state.body);
+  assert.equal(payload.ok, false);
+  assert.equal(payload.error, "host-unavailable");
+});
+
+test("send-prompt：投递给最近活动会话，带可追溯前缀与 mode", async function () {
+  const draft = makeDraft();
+  const controller = fakeController({ items: [{ sessionId: "sess-1", cwd: "/w", updatedAt: 2 }, { sessionId: "sess-2", cwd: "/w", updatedAt: 1 }] });
+  const res = fakeRes();
+  await routeWith({ getController: function () { return controller; } }, "/post-draft/send-prompt")
+    .handler(fakeReq("POST", "/post-draft/send-prompt", { id: draft.id, tone: "shorter", lang: "zh", requestId: "req-1", mode: "queue" }), res);
+  assert.equal(res.state.status, 200);
+  const payload = JSON.parse(res.state.body);
+  assert.equal(payload.ok, true);
+  assert.equal(payload.sessionId, "sess-1");
+  assert.equal(payload.mode, "queue");
+
+  assert.equal(controller.calls.length, 1);
+  const call = controller.calls[0];
+  assert.equal(call.request.sessionId, "sess-1");
+  assert.equal(call.request.requestId, "req-1");
+  assert.equal(call.request.mode, "queue");
+  const text = call.request.content[0].text;
+  assert.ok(text.indexOf("[出稿面板]") === 0, "要能看出是插件发的: " + text.slice(0, 30));
+  assert.ok(text.indexOf(draft.id) !== -1);
+  assert.ok(text.indexOf("更短") !== -1);
+  assert.deepEqual(call.source, { kind: "user" });
+});
+
+test("send-prompt：同一个 requestId 不重复投递", async function () {
+  const draft = makeDraft();
+  const controller = fakeController({ items: [{ sessionId: "sess-1" }] });
+  const host = { getController: function () { return controller; } };
+  const table = routes(host);
+  const handler = table.filter(function (r) { return r.path === "/post-draft/send-prompt"; })[0].handler;
+  const first = fakeRes();
+  const second = fakeRes();
+  const body = { id: draft.id, requestId: "req-dup", mode: "queue" };
+  await handler(fakeReq("POST", "/post-draft/send-prompt", body), first);
+  await handler(fakeReq("POST", "/post-draft/send-prompt", body), second);
+  assert.equal(first.state.status, 200);
+  assert.equal(second.state.status, 200);
+  assert.equal(controller.calls.length, 1, "同一个 requestId 只能投递一次");
+  assert.equal(JSON.parse(second.state.body).duplicate, true);
+});
+
+test("send-prompt：accepted:false 时回 502 rejected（客户端会转复制）", async function () {
+  const draft = makeDraft();
+  const controller = fakeController({ items: [{ sessionId: "sess-1" }], accepted: false });
+  const res = fakeRes();
+  await routeWith({ getController: function () { return controller; } }, "/post-draft/send-prompt")
+    .handler(fakeReq("POST", "/post-draft/send-prompt", { id: draft.id, requestId: "req-rej" }), res);
+  assert.equal(res.state.status, 502);
+  assert.equal(JSON.parse(res.state.body).error, "rejected");
+});
+
+test("send-prompt：survives 没有会话（409 no-session）", async function () {
+  const draft = makeDraft();
+  const controller = fakeController({ items: [] });
+  const res = fakeRes();
+  await routeWith({ getController: function () { return controller; } }, "/post-draft/send-prompt")
+    .handler(fakeReq("POST", "/post-draft/send-prompt", { id: draft.id, requestId: "req-none" }), res);
+  assert.equal(res.state.status, 409);
+  assert.equal(JSON.parse(res.state.body).error, "no-session");
+  assert.equal(controller.calls.length, 0);
+});
+
+test("target：返回最近活动会话，过滤子代理", async function () {
+  const controller = fakeController({ items: [
+    { sessionId: "sub-1", origin: "subagent", updatedAt: 9 },
+    { sessionId: "sess-9", cwd: "/w", running: true, updatedAt: 5 }
+  ] });
+  const res = fakeRes();
+  await routeWith({ getController: function () { return controller; } }, "/post-draft/target")
+    .handler(fakeReq("GET", "/post-draft/target"), res);
+  assert.equal(res.state.status, 200);
+  const payload = JSON.parse(res.state.body);
+  assert.equal(payload.session.sessionId, "sess-9");
+  assert.equal(payload.session.running, true);
+  assert.equal(payload.source, "recent");
 });

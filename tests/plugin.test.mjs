@@ -42,7 +42,8 @@ test("apply(ctx) 在 webServer 可用时注册侧栏面板的全部路由", asyn
   };
   mod.apply(ctx);
   assert.deepEqual(routes.map(function (r) { return r.path; }).sort(),
-    ["/post-draft/copy", "/post-draft/draft", "/post-draft/list", "/post-draft/mark-posted", "/post-draft/rewrite-prompt", "/post-draft/tones"]);
+    ["/post-draft/copy", "/post-draft/draft", "/post-draft/list", "/post-draft/mark-posted",
+      "/post-draft/rewrite-prompt", "/post-draft/send-prompt", "/post-draft/target", "/post-draft/tones"]);
   routes.forEach(function (route) {
     assert.equal(route.kind, "exact");
     assert.equal(typeof route.handler, "function");
