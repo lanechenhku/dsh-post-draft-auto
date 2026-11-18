@@ -271,8 +271,10 @@ function fakeController(spec) {
   const controller = {
     calls: calls,
     list: async function () { return { items: spec.items || [] }; },
-    prompt: async function (request, source) {
-      calls.push({ request: request, source: source });
+    prompt: async function (request, signal) {
+      // 模拟宿主 SessionController.prompt(request, signal)：第一件事就是 throwIfAborted
+      signal.throwIfAborted();
+      calls.push({ request: request, signal: signal, source: { kind: "user", rpcId: request.requestId } });
       if (spec.reject) throw new Error("agent-busy");
       return { accepted: spec.accepted === false ? false : true };
     }
@@ -322,7 +324,8 @@ test("send-prompt：投递给最近活动会话，带可追溯前缀与 mode", a
   assert.ok(text.indexOf("[出稿面板]") === 0, "要能看出是插件发的: " + text.slice(0, 30));
   assert.ok(text.indexOf(draft.id) !== -1);
   assert.ok(text.indexOf("更短") !== -1);
-  assert.deepEqual(call.source, { kind: "user" });
+  assert.equal(typeof call.signal.throwIfAborted, "function", "宿主 SessionController.prompt 需要 AbortSignal");
+  assert.deepEqual(call.source, { kind: "user", rpcId: "req-1" }, "宿主用 requestId 作为 rpcId 建 user source");
 });
 
 test("send-prompt：同一个 requestId 不重复投递", async function () {
@@ -376,4 +379,49 @@ test("target：返回最近活动会话，过滤子代理", async function () {
   assert.equal(payload.session.sessionId, "sess-9");
   assert.equal(payload.session.running, true);
   assert.equal(payload.source, "recent");
+});
+
+// ---------- 缺 draftId 必须是 400，不是 500 ----------
+
+test("GET /post-draft/draft 缺 id → 400 + 可读错误（不是 500）", async function () {
+  const res = fakeRes();
+  await route("/post-draft/draft").handler(fakeReq("GET", "/post-draft/draft"), res);
+  assert.equal(res.state.status, 400, res.state.body);
+  const payload = JSON.parse(res.state.body);
+  assert.equal(payload.ok, false);
+  assert.equal(payload.error, "missing-id");
+  assert.match(payload.message, /draftId/);
+});
+
+test("POST /post-draft/draft 缺 id → 400（不是 500，也不是 'bad draft id' 抛错）", async function () {
+  const res = fakeRes();
+  await route("/post-draft/draft").handler(fakeReq("POST", "/post-draft/draft", { en: "x", zh: "y" }), res);
+  assert.equal(res.state.status, 400, res.state.body);
+  assert.equal(JSON.parse(res.state.body).error, "missing-id");
+});
+
+test("不存在的 id → 404，且不是 500", async function () {
+  const getRes = fakeRes();
+  await route("/post-draft/draft").handler(fakeReq("GET", "/post-draft/draft?id=nope-123"), getRes);
+  assert.equal(getRes.state.status, 404);
+  assert.equal(JSON.parse(getRes.state.body).error, "draft-not-found");
+
+  const putRes = fakeRes();
+  await route("/post-draft/draft").handler(fakeReq("POST", "/post-draft/draft", { id: "nope-123", en: "x", zh: "y" }), putRes);
+  assert.equal(putRes.state.status, 404);
+  assert.equal(JSON.parse(putRes.state.body).error, "draft-not-found");
+});
+
+test("rewrite-prompt 缺 id → 400", async function () {
+  const res = fakeRes();
+  await route("/post-draft/rewrite-prompt").handler(fakeReq("GET", "/post-draft/rewrite-prompt"), res);
+  assert.equal(res.state.status, 400);
+  assert.equal(JSON.parse(res.state.body).error, "missing-id");
+});
+
+test("send-prompt 缺 id → 400（不是 502 的 store 抛错）", async function () {
+  const res = fakeRes();
+  await route("/post-draft/send-prompt").handler(fakeReq("POST", "/post-draft/send-prompt", { tone: "neutral" }), res);
+  assert.equal(res.state.status, 400, res.state.body);
+  assert.equal(JSON.parse(res.state.body).error, "missing-id");
 });
