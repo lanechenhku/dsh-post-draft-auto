@@ -2,6 +2,23 @@
 
 所有值得记录的变更都写在这里。版本号遵循 semver；本包在 0.x 阶段不承诺 API 稳定。
 
+## 0.3.4 — 2026-11-18
+
+### 新增
+- `bin` 入口：`post-draft-auto`（网页工作台）、`post-draft-tool`（四个工具的 CLI）、`post-draft`（出稿 CLI），装成全局包后可直接运行。
+
+### 变更
+- **准备 npm 首发**：去掉 `private: true`；补 `repository`（改为真实仓库地址）、`homepage`（npm 包页）、`bugs`、`author`、`engines.dsh`。
+- `files` 改为**白名单**：只打包 `bin/` `lib/` `public/` `skills/` `data/fixtures/mock.json` `cordis.patch.yml` `config.json` `config.local.example.json` `voice.md` `README.md` `LICENSE` `CHANGELOG.md`。
+  本机的 `config.local.json`、`state/`、`drafts/`、`media/`、`.env*`、`*.log`、`docs/`、`tests/` 一律不进包。
+- 新增 `prepublishOnly: npm test`：`npm publish` 前必须跑完整测试。
+
+### 文档
+- README（中英）：安装一节补 npm 装法（`npm i -g dsh-post-draft-auto` / `npx`）与三个 bin 名。
+
+### 测试
+- 80/80 通过（发布门禁即此命令）。
+
 ## 0.3.3 — 2026-11-18
 
 ### 新增

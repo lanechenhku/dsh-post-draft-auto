@@ -1,13 +1,17 @@
 {
   "name": "dsh-post-draft-auto",
-  "private": true,
-  "version": "0.3.3",
+  "version": "0.3.4",
   "type": "module",
   "description": "Local draft desk for DeepSeek Harness: post_facts pulls sourced facts (bioRxiv DOI / Acme version / npm package / URL), the model writes EN + ZH posts and a card, and you paste them into X yourself. Zero dependencies, no X API, no credentials.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/dsh-post-draft-auto.git"
+    "url": "git+https://github.com/lanechenhku/dsh-post-draft-auto.git"
   },
+  "homepage": "https://www.npmjs.com/package/dsh-post-draft-auto",
+  "bugs": {
+    "url": "https://github.com/lanechenhku/dsh-post-draft-auto/issues"
+  },
+  "author": "Lane Chen <lanechenhku@gmail.com>",
   "keywords": [
     "deepseek-harness",
     "dsh",
@@ -26,16 +30,23 @@
     "draft": "node bin/draft.mjs",
     "test": "node --test tests/",
     "render-card": "node bin/render-card.mjs",
-    "post-tool": "node bin/post-tool.mjs"
+    "post-tool": "node bin/post-tool.mjs",
+    "prepublishOnly": "npm test"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=18",
+    "dsh": ">=0.2.1-rc.2 <0.3.0"
   },
   "main": "lib/plugin.mjs",
   "exports": {
     ".": "./lib/plugin.mjs",
     "./client": "./lib/client.js",
     "./package.json": "./package.json"
+  },
+  "bin": {
+    "post-draft-auto": "bin/serve.mjs",
+    "post-draft-tool": "bin/post-tool.mjs",
+    "post-draft": "bin/draft.mjs"
   },
   "dsh": {
     "bundle": {
@@ -50,14 +61,17 @@
     }
   },
   "files": [
-    "bin/**/*.mjs",
-    "lib/**/*.mjs",
-    "lib/client.js",
-    "public/**/*",
+    "bin/",
+    "lib/",
+    "public/",
+    "skills/",
+    "data/fixtures/mock.json",
     "cordis.patch.yml",
     "config.json",
+    "config.local.example.json",
     "voice.md",
     "README.md",
-    "skills/**/*"
+    "LICENSE",
+    "CHANGELOG.md"
   ]
 }

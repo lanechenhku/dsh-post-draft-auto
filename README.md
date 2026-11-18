@@ -83,7 +83,7 @@ node bin/post-tool.mjs post_mark_posted --json '{"id":"<draft-id>"}'
 
 ## 工作台与侧栏面板
 
-![出稿工作台：左栏草稿列表、右栏英文主推 + 中文回复 + 卡片图 + 事实表](docs/workbench.png)
+![出稿工作台：左栏草稿列表、右栏英文主推 + 中文回复 + 卡片图 + 事实表](https://raw.githubusercontent.com/lanechenhku/dsh-post-draft-auto/main/docs/workbench.png)
 
 上图是真实截图（一条 preprint 的草稿打在工作台里；草稿内容是演示用的中性示例，下同）：
 
@@ -95,9 +95,9 @@ node bin/post-tool.mjs post_mark_posted --json '{"id":"<draft-id>"}'
 
 **侧栏「✍ 出稿」面板**（v0.3.0 起随插件提供）—— 不开网页工作台也能看草稿：
 
-![侧栏「✍ 出稿」面板：草稿列表、AI/模板标签、计权字数、复制与已发按钮](docs/panel.png)
+![侧栏「✍ 出稿」面板：草稿列表、AI/模板标签、计权字数、复制与已发按钮](https://raw.githubusercontent.com/lanechenhku/dsh-post-draft-auto/main/docs/panel.png)
 
-（面板要重启 DSH 才出现在侧栏里；上面这张是用同一份 `lib/client.js` 在 harness 页里渲染的，见 [docs/侧栏面板.md](docs/侧栏面板.md)。）
+（面板要重启 DSH 才出现在侧栏里；上面这张是用同一份 `lib/client.js` 在 harness 页里渲染的，见 [docs/侧栏面板.md](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/docs/%E4%BE%A7%E6%A0%8F%E9%9D%A2%E6%9D%BF.md)。）
 
 - 位置：**右侧栏的页签选择器**里，名字「✍ 出稿」；装好（或更新）插件后要**完全退出 DSH（⌘Q）再启动**才会出现，客户端半部分在启动时加载
 - 每张草稿卡片：标题、`AI 生成 / 模板生成`、状态、`EN n/280 · ZH n/280`（超了变红）、guard 红条、待补前 4 条
@@ -128,7 +128,7 @@ node bin/post-tool.mjs post_mark_posted --json '{"id":"<draft-id>"}'
 `voice.md` 是写稿时的语气约定，禁用词在 `config.json.voice.banned`
 
 **本机私有覆盖层**：把真实端点、本地仓库路径这类不该公开的值写进 `config.local.json`（已在 `.gitignore` 里），
-它会被深合并到 `config.json` 之上；仓库里只保留占位符版本。键名与合并规则见 [config.local.example.json](config.local.example.json)：
+它会被深合并到 `config.json` 之上；仓库里只保留占位符版本。键名与合并规则见 [config.local.example.json](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/config.local.example.json)：
 对象深合并；对象数组按 index 深合并（所以只写要改的字段就行）；含原始值的数组整体替换；想换掉整个对象数组用 `{"$replace": [...]}`。
 （`excited to announce`、`game-changer`、`revolutionary`、`震撼发布`… 以及中文的「重磅」「颠覆」「史上最强」）。
 `voice.md` 现在还是默认的「零形容词」风格——你贴 3–5 条旧推，它就会变成你的语气。
@@ -180,11 +180,17 @@ desktop profile 由 Electron 独占，**不能用 `dsh plugin --profile desktop 
 （数据来自宿主上的三个 `/post-draft/*` 同源接口）。装或更新后必须**完全退出 DSH 再启动**，否则浏览器半部分不会加载。
 装法就是把本仓库以 `link:` 依赖加进 DSH profile 的 `package.json`，再把这个包名写进 `dsh.profile.bundles`，重启 DSH 即生效（回滚：还原那份 `package.json` 备份后再重启）。
 
-### 不装插件
+### 不装插件（npm 包或源码都行）
 
-- 网页工作台：`npm start`
-- CLI：`node bin/post-tool.mjs <post_facts|post_save|post_list|post_mark_posted>`
-- 技能：把 [skills/post-draft/SKILL.md](skills/post-draft/SKILL.md) 拷到 `~/.dsh/skills/`，任何会话都能按同一流程出稿
+```sh
+npm i -g dsh-post-draft-auto   # 也可以 npx dsh-post-draft-auto
+post-draft-auto                # 启动网页工作台 → http://127.0.0.1:4789
+post-draft-tool post_list      # 四个工具的 CLI（post_facts / post_save / post_list / post_mark_posted）
+post-draft --help              # 出稿 CLI（--manual / --source / --collect / --mock）
+```
+
+在仓库里跑则等价于 `npm start`、`node bin/post-tool.mjs ...`、`node bin/draft.mjs ...`。
+技能：把 [skills/post-draft/SKILL.md](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/skills/post-draft/SKILL.md) 拷到 `~/.dsh/skills/`，任何会话都能按同一流程出稿。
 
 ## 配置
 
@@ -248,19 +254,19 @@ npm test        # = node --test tests/
 
 ## 相关文档
 
-- [docs/侧栏面板.md](docs/侧栏面板.md) —— 侧栏「出稿」面板的接线方式、验证步骤
-- [docs/releases.md](docs/releases.md) —— 发布说明的写法（功能点只从这里取）
-- [skills/post-draft/SKILL.md](skills/post-draft/SKILL.md) —— 「我发了 X」触发的那套流程
-- [voice.md](voice.md) —— 语气约束
-- [docs/github-meta.md](docs/github-meta.md) —— 仓库门面（description / topics / release）的取值与理由
-- [CHANGELOG.md](CHANGELOG.md) —— 版本历史（0.1.0 / 0.2.0 未单独发布 / 0.3.0）与 [LICENSE](LICENSE)
+- [docs/侧栏面板.md](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/docs/%E4%BE%A7%E6%A0%8F%E9%9D%A2%E6%9D%BF.md) —— 侧栏「出稿」面板的接线方式、验证步骤
+- [docs/releases.md](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/docs/releases.md) —— 发布说明的写法（功能点只从这里取）
+- [skills/post-draft/SKILL.md](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/skills/post-draft/SKILL.md) —— 「我发了 X」触发的那套流程
+- [voice.md](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/voice.md) —— 语气约束
+- [docs/github-meta.md](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/docs/github-meta.md) —— 仓库门面（description / topics / release）的取值与理由
+- [CHANGELOG.md](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/CHANGELOG.md) —— 版本历史（0.1.0 → 0.3.4）与 [LICENSE](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/LICENSE)
 
 ## License
 
-[MIT](LICENSE) © 2026 Lane Guolan Chen
+[MIT](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/LICENSE) © 2026 Lane Guolan Chen
 
 零依赖、不发推、不存凭据；修改、商用、再分发都按 MIT 来，保留版权与许可声明即可。
-仓库根目录的 [LICENSE](LICENSE) 是纯文本 MIT，GitHub 会据此显示许可证。
+仓库根目录的 [LICENSE](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/LICENSE) 是纯文本 MIT，GitHub 会据此显示许可证。
 
 ---
 
@@ -356,7 +362,7 @@ body that is not in the facts lands in `blockers`** (no invented figures).
 
 ## Workbench and sidebar panel
 
-![The draft workbench: draft list on the left, English post, Chinese reply, card and fact table on the right](docs/workbench.png)
+![The draft workbench: draft list on the left, English post, Chinese reply, card and fact table on the right](https://raw.githubusercontent.com/lanechenhku/dsh-post-draft-auto/main/docs/workbench.png)
 
 The screenshot above is real (a preprint draft open in the workbench; the draft content is a neutral demo, same below):
 
@@ -375,9 +381,9 @@ The screenshot above is real (a preprint draft open in the workbench; the draft 
 **Sidebar "✍ 出稿" panel** (shipped with the plugin since v0.3.0) — the draft list without opening the web
 workbench:
 
-![The sidebar draft panel: draft list with AI/template tags, weighted counts, copy and mark-posted buttons](docs/panel.png)
+![The sidebar draft panel: draft list with AI/template tags, weighted counts, copy and mark-posted buttons](https://raw.githubusercontent.com/lanechenhku/dsh-post-draft-auto/main/docs/panel.png)
 
-(The tab only appears after restarting DSH; the image above renders the same `lib/client.js` in a harness page — see [docs/侧栏面板.md](docs/侧栏面板.md).)
+(The tab only appears after restarting DSH; the image above renders the same `lib/client.js` in a harness page — see [docs/侧栏面板.md](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/docs/%E4%BE%A7%E6%A0%8F%E9%9D%A2%E6%9D%BF.md).)
 
 - Where: in the **right sidebar's tab picker**, named "✍ 出稿". After installing or updating the plugin you must
   **quit DSH completely (⌘Q) and start it again** — the client half loads at startup
@@ -418,7 +424,7 @@ when you go over; `post_save` returns `enWeight` / `zhWeight` too.
 
 **Local override**: keep real endpoints and local repo paths in `config.local.json` (already in `.gitignore`). It is
 deep-merged on top of `config.json`; the repository only carries the placeholder version. Key names and merge rules are in
-[config.local.example.json](config.local.example.json): objects merge deeply, arrays of objects merge by index (so you can
+[config.local.example.json](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/config.local.example.json): objects merge deeply, arrays of objects merge by index (so you can
 override just one field), arrays of primitives replace wholesale, and `{"$replace": [...]}` replaces an object array outright.
 (`excited to announce`, `game-changer`, "重磅", "颠覆", "史上最强"…). It is still the conservative default —
 hand it 3–5 of your old posts and it will sound like you.
@@ -480,12 +486,18 @@ system prompt**, and **adds the "✍ 出稿" tab to the right sidebar** (fed by 
 routes on the host). Quit DSH completely after installing or updating, otherwise the client half will not load.
 To install, add this repo as a `link:` dependency in the DSH profile `package.json`, add the package name to `dsh.profile.bundles`, and restart DSH (rollback: restore that `package.json` backup, then restart).
 
-### Without the plugin
+### Without the plugin (npm package or the source tree)
 
-- Web workbench: `npm start`
-- CLI: `node bin/post-tool.mjs <post_facts|post_save|post_list|post_mark_posted>`
-- Skill: copy [skills/post-draft/SKILL.md](skills/post-draft/SKILL.md) into `~/.dsh/skills/` so any session
-  follows the same flow
+```sh
+npm i -g dsh-post-draft-auto   # or: npx dsh-post-draft-auto
+post-draft-auto                # start the web workbench → http://127.0.0.1:4789
+post-draft-tool post_list      # CLI for the four tools (post_facts / post_save / post_list / post_mark_posted)
+post-draft --help              # drafting CLI (--manual / --source / --collect / --mock)
+```
+
+From the repository the same things are `npm start`, `node bin/post-tool.mjs ...` and `node bin/draft.mjs ...`.
+Skill: copy [skills/post-draft/SKILL.md](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/skills/post-draft/SKILL.md) into `~/.dsh/skills/` so any session
+follows the same flow.
 
 ## Configuration
 
@@ -554,7 +566,7 @@ A real end-to-end run (on this machine):
 
 ## License
 
-[MIT](LICENSE) © 2026 Lane Guolan Chen
+[MIT](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/LICENSE) © 2026 Lane Guolan Chen
 
 Use, modify and redistribute it under the MIT terms; keep the copyright and permission notice.
-The plain-text [LICENSE](LICENSE) in the repository root is what GitHub reads for the licence badge.
+The plain-text [LICENSE](https://github.com/lanechenhku/dsh-post-draft-auto/blob/main/LICENSE) in the repository root is what GitHub reads for the licence badge.
