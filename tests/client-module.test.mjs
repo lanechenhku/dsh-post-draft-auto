@@ -138,7 +138,7 @@ test("分组：没有已发/丢弃时不出现折叠组，文案为空", functio
   const g = mod.__internals.splitDrafts(drafts);
   assert.equal(g.active.length, 2);
   assert.equal(g.archived.length, 0);
-  assert.equal(g.archivedLabel, "", "没有归档时 label 必须为空，面板据此不渲染该组");
+  assert.equal(mod.__internals.archivedLabel(g.archived, "zh"), "", "没有归档时 label 必须为空，面板据此不渲染该组");
 });
 
 test("分组：已发 3 + 丢弃 1 → 文案「已发 3 · 丢弃 1」，顶部只剩待发/已复制", function () {
@@ -154,14 +154,14 @@ test("分组：已发 3 + 丢弃 1 → 文案「已发 3 · 丢弃 1」，顶部
   const g = mod.__internals.splitDrafts(drafts);
   assert.deepEqual(g.active.map(function (d) { return d.id; }), ["a", "f"]);
   assert.deepEqual(g.archived.map(function (d) { return d.id; }), ["b", "c", "d", "e"]);
-  assert.equal(g.archivedLabel, "已发 3 · 丢弃 1");
+  assert.equal(mod.__internals.archivedLabel(g.archived, "zh"), "已发 3 · 丢弃 1");
 });
 
 test("分组：只有一种状态时文案不出现 0", function () {
   const mod = loadClient();
-  assert.equal(mod.__internals.archivedLabel([{ status: "published" }, { status: "published" }]), "已发 2");
-  assert.equal(mod.__internals.archivedLabel([{ status: "discarded" }]), "丢弃 1");
-  assert.equal(mod.__internals.archivedLabel([]), "");
+  assert.equal(mod.__internals.archivedLabel([{ status: "published" }, { status: "published" }], "zh"), "已发 2");
+  assert.equal(mod.__internals.archivedLabel([{ status: "discarded" }], "zh"), "丢弃 1");
+  assert.equal(mod.__internals.archivedLabel([], "zh"), "");
 });
 
 test("折叠状态：默认收起，写过的值会被读回", function () {
@@ -198,5 +198,30 @@ test("乐观更新：markPublished 把目标改成 published，不改原数组�
   const g = mod.__internals.splitDrafts(after);
   assert.deepEqual(g.active.map(function (d) { return d.id; }), ["a"], "点完已发，卡片立刻离开顶部");
   assert.deepEqual(g.archived.map(function (d) { return d.id; }), ["b"]);
-  assert.equal(g.archivedLabel, "已发 1");
+  assert.equal(mod.__internals.archivedLabel(g.archived, "zh"), "已发 1");
+});
+// ---------- 界面语言 ----------
+
+test("语言：默认中文，写过的 en 会被读回", function () {
+  const mod = loadClient();
+  const empty = fakeStorage({});
+  assert.equal(mod.__internals.readLang({ storage: empty }), "zh", "默认必须是中文");
+  assert.equal(mod.__internals.LANG_KEY, "postDraft.lang");
+  mod.__internals.writeLang("en", { storage: empty });
+  assert.equal(empty.dump()[mod.__internals.LANG_KEY], "en");
+  assert.equal(mod.__internals.readLang({ storage: empty }), "en");
+});
+
+test("语言：localStorage 不可用时按中文处理，不抛错", function () {
+  const mod = loadClient();
+  const broken = { getItem: function () { throw new Error("denied"); }, setItem: function () { throw new Error("denied"); } };
+  assert.equal(mod.__internals.readLang({ storage: broken }), "zh");
+  assert.doesNotThrow(function () { mod.__internals.writeLang("en", { storage: broken }); });
+});
+
+test("语言：折叠组文案跟着语言走", function () {
+  const mod = loadClient();
+  const archived = [{ status: "published" }, { status: "published" }, { status: "discarded" }];
+  assert.equal(mod.__internals.archivedLabel(archived, "zh"), "已发 2 · 丢弃 1");
+  assert.equal(mod.__internals.archivedLabel(archived, "en"), "Posted 2 · Discarded 1");
 });

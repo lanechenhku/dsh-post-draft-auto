@@ -31,7 +31,7 @@ test("apply(ctx) 真的注册了四个工具并挂上 systemPrompt", async funct
   assert.ok(effects.length >= 2);
 });
 
-test("apply(ctx) 在 webServer 可用时注册侧栏面板的三个路由", async function () {
+test("apply(ctx) 在 webServer 可用时注册侧栏面板的全部路由", async function () {
   const mod = await import("../lib/plugin.mjs");
   const routes = [];
   const ctx = {
@@ -42,7 +42,7 @@ test("apply(ctx) 在 webServer 可用时注册侧栏面板的三个路由", asyn
   };
   mod.apply(ctx);
   assert.deepEqual(routes.map(function (r) { return r.path; }).sort(),
-    ["/post-draft/copy", "/post-draft/list", "/post-draft/mark-posted"]);
+    ["/post-draft/copy", "/post-draft/draft", "/post-draft/list", "/post-draft/mark-posted", "/post-draft/rewrite-prompt", "/post-draft/tones"]);
   routes.forEach(function (route) {
     assert.equal(route.kind, "exact");
     assert.equal(typeof route.handler, "function");
